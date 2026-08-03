@@ -1,0 +1,99 @@
+/* 全局设计变量。改这里就能整体换肤 */
+.login.data-v-45258083 {
+  min-height: 100vh;
+  padding: 160rpx 60rpx 60rpx;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #fff0f3 0%, #f5f6f8 45%);
+}
+.header.data-v-45258083 {
+  text-align: center;
+  margin-bottom: 100rpx;
+}
+.logo.data-v-45258083 {
+  width: 140rpx;
+  height: 140rpx;
+  line-height: 140rpx;
+  margin: 0 auto 32rpx;
+  border-radius: 40rpx;
+  background: #e8506d;
+  color: #fff;
+  font-size: 64rpx;
+  font-weight: 600;
+}
+.title.data-v-45258083 {
+  font-size: 44rpx;
+  font-weight: 600;
+  color: #1f2329;
+  margin-bottom: 16rpx;
+}
+.slogan.data-v-45258083 {
+  font-size: 26rpx;
+  color: #8a8f99;
+}
+.form.data-v-45258083 {
+  flex: 1;
+}
+.mock-box.data-v-45258083 {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 40rpx;
+}
+.mock-tip.data-v-45258083 {
+  font-size: 22rpx;
+  color: #ff8f1f;
+  line-height: 1.6;
+  margin-bottom: 16rpx;
+}
+.mock-input.data-v-45258083 {
+  height: 80rpx;
+  background: #f5f6f8;
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+  font-size: 28rpx;
+}
+.ph.data-v-45258083 {
+  color: #bbbfc4;
+}
+.agreement.data-v-45258083 {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 40rpx;
+  padding: 0 10rpx;
+}
+.checkbox.data-v-45258083 {
+  width: 34rpx;
+  height: 34rpx;
+  border: 1rpx solid #c9cdd4;
+  border-radius: 50%;
+  margin-right: 14rpx;
+  flex-shrink: 0;
+  margin-top: 4rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.checkbox.checked.data-v-45258083 {
+  background: #e8506d;
+  border-color: #e8506d;
+}
+.checkbox .tick.data-v-45258083 {
+  color: #fff;
+  font-size: 22rpx;
+}
+.agreement .text.data-v-45258083 {
+  flex: 1;
+  font-size: 24rpx;
+  color: #8a8f99;
+  line-height: 1.6;
+}
+.link.data-v-45258083 {
+  color: #e8506d;
+}
+.footer.data-v-45258083 {
+  text-align: center;
+  font-size: 22rpx;
+  color: #bbbfc4;
+  padding-bottom: 40rpx;
+}

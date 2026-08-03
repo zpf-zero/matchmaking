@@ -1,0 +1,30 @@
+/* 全局设计变量。改这里就能整体换肤 */
+.form-row.data-v-171d1c53 {
+  display: flex;
+  align-items: center;
+  min-height: 100rpx;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #f2f3f5;
+}
+.form-row.data-v-171d1c53:last-child {
+  border-bottom: none;
+}
+.label.data-v-171d1c53 {
+  width: 180rpx;
+  flex-shrink: 0;
+  font-size: 28rpx;
+  color: #1f2329;
+}
+.label .req.data-v-171d1c53 {
+  color: #f53f3f;
+  margin-left: 4rpx;
+}
+.content.data-v-171d1c53 {
+  flex: 1;
+  font-size: 28rpx;
+  color: #1f2329;
+  overflow: hidden;
+}
+.content.right.data-v-171d1c53 {
+  text-align: right;
+}
