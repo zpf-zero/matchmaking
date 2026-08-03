@@ -1,0 +1,98 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": { "navigationBarTitleText": "推荐" }
+    },
+    {
+      "path": "pages/search/index",
+      "style": { "navigationBarTitleText": "筛选" }
+    },
+    {
+      "path": "pages/message/index",
+      "style": { "navigationBarTitleText": "消息" }
+    },
+    {
+      "path": "pages/mine/index",
+      "style": { "navigationBarTitleText": "我的" }
+    },
+    {
+      "path": "pages/login/index",
+      "style": { "navigationBarTitleText": "登录", "navigationStyle": "custom" }
+    },
+    {
+      "path": "pages/profile/setup",
+      "style": { "navigationBarTitleText": "完善资料" }
+    },
+    {
+      "path": "pages/user/detail",
+      "style": { "navigationBarTitleText": "TA的资料" }
+    },
+    {
+      "path": "pages/user/requirement",
+      "style": { "navigationBarTitleText": "择偶要求" }
+    },
+    {
+      "path": "pages/user/photos",
+      "style": { "navigationBarTitleText": "我的相册" }
+    },
+    {
+      "path": "pages/chat/index",
+      "style": { "navigationBarTitleText": "聊天" }
+    },
+    {
+      "path": "pages/interaction/list",
+      "style": { "navigationBarTitleText": "互动" }
+    },
+    {
+      "path": "pages/setting/index",
+      "style": { "navigationBarTitleText": "设置" }
+    },
+    {
+      "path": "pages/setting/blacklist",
+      "style": { "navigationBarTitleText": "黑名单" }
+    },
+    {
+      "path": "pages/common/status",
+      "style": { "navigationBarTitleText": "提示" }
+    },
+    {
+      "path": "pages/admin/index",
+      "style": { "navigationBarTitleText": "管理中心" }
+    },
+    {
+      "path": "pages/admin/audit",
+      "style": { "navigationBarTitleText": "资料审核" }
+    },
+    {
+      "path": "pages/admin/report",
+      "style": { "navigationBarTitleText": "举报处理" }
+    },
+    {
+      "path": "pages/admin/user",
+      "style": { "navigationBarTitleText": "用户管理" }
+    },
+    {
+      "path": "pages/admin/user-detail",
+      "style": { "navigationBarTitleText": "用户详情" }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "缘来婚恋",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#F5F6F8"
+  },
+  "tabBar": {
+    "color": "#8A8F99",
+    "selectedColor": "#E8506D",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/index/index", "text": "推荐" },
+      { "pagePath": "pages/search/index", "text": "筛选" },
+      { "pagePath": "pages/message/index", "text": "消息" },
+      { "pagePath": "pages/mine/index", "text": "我的" }
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "择偶要求",
+  "usingComponents": {
+    "form-row": "../../components/FormRow"
+  }
+}

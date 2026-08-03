@@ -1,0 +1,33 @@
+{
+  "name": "缘来婚恋",
+  "appid": "",
+  "description": "严肃婚恋交友小程序",
+  "versionName": "1.0.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "app-plus": {
+    "usingComponents": true,
+    "nvueStyleCompiler": "uni-app",
+    "compilerVersion": 3
+  },
+  "quickapp": {},
+  "mp-weixin": {
+    "appid": "",
+    "setting": {
+      "urlCheck": false,
+      "es6": true,
+      "enhance": true,
+      "postcss": true,
+      "minified": true
+    },
+    "usingComponents": true,
+    "permission": {},
+    "requiredPrivateInfos": []
+  },
+  "h5": {
+    "router": {
+      "mode": "hash"
+    }
+  },
+  "vueVersion": "3"
+}

@@ -1,0 +1,30 @@
+server:
+  port: 8080
+  mode: debug              # debug / release
+
+mysql:
+  host: localhost
+  port: 3306
+  user: root
+  password: root123456
+  database: hunjie
+
+jwt:
+  secret: "hunjie-dev-secret-please-change-in-production"
+  expire_days: 7
+
+wechat:
+  mock: true               # ← 拿到 AppID/AppSecret 后改成 false
+  app_id: ""
+  app_secret: ""
+
+upload:
+  dir: "./uploads"
+  base_url: "http://localhost:8080/uploads"
+  max_size_mb: 5
+
+admin:
+  # 白名单内的 openid 登录时自动置为超级管理员（role=4）
+  # mock 模式下，openid 就是前端传的 code
+  super_admin_openids:
+    - "mock_admin"

@@ -1,0 +1,6 @@
+# 敏感词库（可选）
+# 一行一个词，# 开头为注释
+# 此文件不存在时使用 internal/pkg/sensitive/sensitive.go 里的内置词库
+# 拿到 AppSecret 后文本会走微信 msgSecCheck，此处作为第一道快速筛子保留
+
+# ---- 在下面按需补充 ----
