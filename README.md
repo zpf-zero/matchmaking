@@ -5,7 +5,7 @@
 - 前端：uni-app + Vue3 + TypeScript + Pinia（**C 端与管理端同一个小程序**）
 - 后端：Go 1.24 + Gin + GORM + MySQL 8（**C 端与管理端同一套服务**）
 
-设计文档见 `docs/`，开发进度见 `plan.md`。
+设计文档见 `docs/`。
 
 ---
 
@@ -14,7 +14,6 @@
 ```
 matchmaking/
 ├── docs/                    设计文档（产品 / 数据库 / 接口）
-├── plan.md                  开发进度与待办
 ├── server/                  Go 后端
 │   ├── cmd/main.go
 │   ├── config.yaml          配置（微信凭证、数据库、超管白名单）
