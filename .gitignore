@@ -1,3 +1,56 @@
-/miniapp/node_modules
-/server/go.mod
-/server/go.sum
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+*.local
+server/config.local.yaml
+server/config.*.local.yaml
+
+# Logs and runtime files
+*.log
+logs/
+tmp/
+temp/
+*.pid
+
+# Frontend dependencies and build output
+miniapp/node_modules/
+miniapp/dist/
+miniapp/.uni/
+miniapp/.hbuilderx/
+miniapp/.cache/
+miniapp/coverage/
+miniapp/*.tsbuildinfo
+
+# Go build and test output
+server/bin/
+server/tmp/
+server/coverage/
+server/*.exe
+server/*.test
+server/*.out
+server/*.prof
+
+# Runtime uploads and local databases
+server/uploads/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Test and coverage output
+coverage/
+*.cover
+coverage.out
