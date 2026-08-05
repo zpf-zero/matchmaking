@@ -78,7 +78,7 @@ async function handlePass() {
 function goChat() {
   const d = detail.value!
   uni.navigateTo({
-    url: `/pages/chat/index?id=${d.conversation_id}&name=${encodeURIComponent(d.nickname)}`,
+    url: `/pages/chat/index?id=${d.conversation_id}&name=${encodeURIComponent(d.nickname)}&peer=${d.id}`,
   })
 }
 

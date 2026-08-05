@@ -9,6 +9,7 @@ import { ws } from '@/utils/ws'
 
 const store = useUserStore()
 const convId = ref(0)
+const peerId = ref(0)
 const peerName = ref('')
 const messages = ref<Message[]>([])
 const input = ref('')
@@ -16,11 +17,21 @@ const scrollTop = ref(0)
 const loadingMore = ref(false)
 const noMore = ref(false)
 const sending = ref(false)
+const peerTyping = ref(false)
 
 const myId = () => store.user?.id || 0
 
+/** 配对后不知道说什么是最大流失点，给几个现成的开场白 */
+const icebreakers = [
+  '你好呀，很高兴认识你 😊',
+  '看了你的自我介绍，感觉我们挺有共同点的',
+  '周末一般喜欢做什么呀？',
+  '你的照片拍得真不错，是在哪里拍的？',
+]
+
 onLoad(async (q) => {
   convId.value = Number(q?.id || 0)
+  peerId.value = Number(q?.peer || 0)
   peerName.value = decodeURIComponent(q?.name || '聊天')
   uni.setNavigationBarTitle({ title: peerName.value })
 
@@ -30,6 +41,8 @@ onLoad(async (q) => {
   ws.on('message', onWsMessage)
   ws.on('ack', onWsAck)
   ws.on('error', onWsError)
+  ws.on('typing', onWsTyping)
+  ws.on('recall', onWsRecall)
   ws.connect()
 })
 
@@ -37,6 +50,8 @@ onUnload(() => {
   ws.off('message', onWsMessage)
   ws.off('ack', onWsAck)
   ws.off('error', onWsError)
+  ws.off('typing', onWsTyping)
+  ws.off('recall', onWsRecall)
 })
 
 async function loadHistory(before = 0) {
@@ -72,9 +87,90 @@ async function markRead() {
 
 function onWsMessage(msg: Message) {
   if (msg.conversation_id !== convId.value) return
+  peerTyping.value = false // 对方消息到了，输入提示立即消失
   messages.value.push(msg)
   scrollToBottom()
   markRead()
+}
+
+// ---------- 正在输入 ----------
+let typingHideTimer: any = null
+let lastTypingSent = 0
+
+function onWsTyping(data: { conversation_id: number }) {
+  if (data.conversation_id !== convId.value) return
+  peerTyping.value = true
+  clearTimeout(typingHideTimer)
+  typingHideTimer = setTimeout(() => (peerTyping.value = false), 4000)
+}
+
+function onInput() {
+  // 3 秒内只发一次，避免每敲一个字都发
+  const now = Date.now()
+  if (now - lastTypingSent < 3000 || !ws.connected) return
+  lastTypingSent = now
+  ws.send('typing', { conversation_id: convId.value })
+}
+
+// ---------- 撤回 ----------
+function onWsRecall(data: { conversation_id: number; message_id: number }) {
+  if (data.conversation_id !== convId.value) return
+  const m = messages.value.find((x) => x.id === data.message_id)
+  if (m) {
+    m.type = 3
+    m.content = '撤回了一条消息'
+  }
+}
+
+function onLongPressMsg(m: Message) {
+  if (!isMine(m) || m.type === 3 || !m.id) return
+  // 2 分钟限制服务端会校验，这里只是提前隐藏入口减少无效点击
+  const created = new Date(m.created_at.replace(/-/g, '/').replace(/\..*$/, '')).getTime()
+  if (Date.now() - created > 2 * 60 * 1000) return
+
+  uni.showActionSheet({
+    itemList: ['撤回'],
+    success: async () => {
+      try {
+        await chatApi.recall(m.id)
+        m.type = 3
+        m.content = '撤回了一条消息'
+      } catch {
+        // 已提示
+      }
+    },
+  })
+}
+
+// ---------- 时间分隔线 ----------
+/** 与上一条间隔超过 5 分钟才显示时间，模仿微信的做法，比每条都带时间干净得多 */
+function showTimeDivider(index: number): boolean {
+  if (index === 0) return true
+  const cur = parseTime(messages.value[index].created_at)
+  const prev = parseTime(messages.value[index - 1].created_at)
+  return cur - prev > 5 * 60 * 1000
+}
+
+function parseTime(t: string) {
+  return new Date(t.replace(/-/g, '/').replace(/\..*$/, '')).getTime()
+}
+
+function dividerText(t: string) {
+  const d = new Date(parseTime(t))
+  const now = new Date()
+  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  if (d.toDateString() === now.toDateString()) return hm
+  const yesterday = new Date(now.getTime() - 86400000)
+  if (d.toDateString() === yesterday.toDateString()) return `昨天 ${hm}`
+  return `${d.getMonth() + 1}月${d.getDate()}日 ${hm}`
+}
+
+function goPeerDetail() {
+  if (peerId.value) uni.navigateTo({ url: `/pages/user/detail?id=${peerId.value}` })
+}
+
+function useIcebreaker(text: string) {
+  input.value = text
 }
 
 function onWsAck(data: { temp_id: string; message: Message }) {
@@ -201,14 +297,19 @@ function unmatch() {
   })
 }
 
-function timeText(t: string) {
-  const d = new Date(t.replace(/-/g, '/').replace(/\..*$/, ''))
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-}
 </script>
 
 <template>
   <view class="chat">
+    <!-- 对方信息栏：正在输入提示 + 资料入口 -->
+    <view class="peer-bar" @click="goPeerDetail">
+      <view class="peer-left">
+        <text class="peer-name">{{ peerName }}</text>
+        <text v-if="peerTyping" class="typing">正在输入...</text>
+      </view>
+      <text v-if="peerId" class="peer-link">查看资料 ›</text>
+    </view>
+
     <scroll-view
       class="msg-area"
       scroll-y
@@ -218,29 +319,52 @@ function timeText(t: string) {
       upper-threshold="60"
     >
       <view class="msg-list">
-        <view v-if="noMore" class="history-tip">没有更多消息了</view>
+        <view v-if="noMore && messages.length" class="history-tip">没有更多消息了</view>
 
         <view class="safe-notice">
           请勿在聊天中透露银行卡、验证码等信息。凡涉及借钱、投资、刷单，均为诈骗。
         </view>
 
-        <view v-for="m in messages" :key="m.id || m._temp_id" class="msg" :class="{ mine: isMine(m) }">
-          <image
-            v-if="m.type === 2"
-            :src="m.content"
-            class="img-msg"
-            mode="widthFix"
-            @click="previewImage(m.content)"
-          />
-          <view v-else class="bubble">
-            <text>{{ m.content }}</text>
-          </view>
-          <view class="msg-meta">
-            <text v-if="m._sending" class="sending">发送中</text>
-            <text v-else-if="m._failed" class="failed">发送失败</text>
-            <text v-else class="time">{{ timeText(m.created_at) }}</text>
+        <!-- 空会话：破冰话题 -->
+        <view v-if="noMore && !messages.length" class="icebreak">
+          <view class="ib-title">配对成功，不知道说什么？试试这些开场白 👇</view>
+          <view
+            v-for="(t, i) in icebreakers"
+            :key="i"
+            class="ib-item"
+            @click="useIcebreaker(t)"
+          >
+            {{ t }}
           </view>
         </view>
+
+        <template v-for="(m, i) in messages" :key="m.id || m._temp_id">
+          <!-- 时间分隔线：与上一条超过 5 分钟才显示 -->
+          <view v-if="showTimeDivider(i)" class="time-divider">{{ dividerText(m.created_at) }}</view>
+
+          <!-- 系统消息（撤回等） -->
+          <view v-if="m.type === 3" class="sys-msg">
+            {{ isMine(m) ? '你' : '对方' }}{{ m.content }}
+          </view>
+
+          <view v-else class="msg" :class="{ mine: isMine(m) }">
+            <image
+              v-if="m.type === 2"
+              :src="m.content"
+              class="img-msg"
+              mode="widthFix"
+              @click="previewImage(m.content)"
+              @longpress="onLongPressMsg(m)"
+            />
+            <view v-else class="bubble" @longpress="onLongPressMsg(m)">
+              <text>{{ m.content }}</text>
+            </view>
+            <view v-if="m._sending || m._failed" class="msg-meta">
+              <text v-if="m._sending" class="sending">发送中</text>
+              <text v-else class="failed">发送失败</text>
+            </view>
+          </view>
+        </template>
       </view>
     </scroll-view>
 
@@ -252,6 +376,7 @@ function timeText(t: string) {
         placeholder-class="ph"
         confirm-type="send"
         :adjust-position="true"
+        @input="onInput"
         @confirm="send"
       />
       <view class="img-btn" @click="chooseImage">🖼</view>
@@ -270,6 +395,75 @@ function timeText(t: string) {
   flex-direction: column;
   height: 100vh;
   background: #f5f6f8;
+}
+
+.peer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 24rpx;
+  background: #fff;
+  border-bottom: 1rpx solid #ebedf0;
+}
+
+.peer-left {
+  display: flex;
+  align-items: baseline;
+  gap: 16rpx;
+}
+
+.peer-name {
+  font-size: 28rpx;
+  font-weight: 500;
+}
+
+.typing {
+  font-size: 22rpx;
+  color: #00b578;
+}
+
+.peer-link {
+  font-size: 24rpx;
+  color: #8a8f99;
+}
+
+.icebreak {
+  padding: 20rpx 0;
+}
+
+.ib-title {
+  text-align: center;
+  font-size: 24rpx;
+  color: #8a8f99;
+  margin-bottom: 20rpx;
+}
+
+.ib-item {
+  background: #fff;
+  border-radius: 14rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 14rpx;
+  font-size: 27rpx;
+  color: #4e5969;
+
+  &:active {
+    background: #fff0f3;
+  }
+}
+
+.time-divider {
+  text-align: center;
+  font-size: 21rpx;
+  color: #bbbfc4;
+  padding: 14rpx 0;
+}
+
+.sys-msg {
+  text-align: center;
+  font-size: 22rpx;
+  color: #bbbfc4;
+  padding: 10rpx 0;
+  margin-bottom: 16rpx;
 }
 
 .msg-area {

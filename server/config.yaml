@@ -3,11 +3,11 @@ server:
   mode: debug              # debug / release
 
 mysql:
-  host: localhost
+  host: 101.35.245.54
   port: 3306
-  user: root
-  password: root123456
-  database: hunjie
+  user: marry_link_dev
+  password: HXchGX66LCMpmcAF
+  database: marry_link_dev
 
 jwt:
   secret: "hunjie-dev-secret-please-change-in-production"

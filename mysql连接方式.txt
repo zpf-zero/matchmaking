@@ -1,0 +1,15 @@
+【当前使用：云数据库】（config.yaml 已指向此库）
+连接地址：101.35.245.54
+端口：3306
+用户名：marry_link_dev
+密码：HXchGX66LCMpmcAF
+数据库：marry_link_dev
+版本：MySQL 5.6.50
+
+【备用：本地数据库】（数据已于 2026-08-03 同步到云库）
+连接地址：localhost
+端口：3306
+用户名：root
+密码：root123456
+数据库：hunjie
+版本：MySQL 8.4

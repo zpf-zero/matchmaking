@@ -73,7 +73,7 @@ async function handleLike(user: UserCard) {
         success: (r) => {
           if (r.confirm) {
             uni.navigateTo({
-              url: `/pages/chat/index?id=${res.conversation_id}&name=${encodeURIComponent(user.nickname)}`,
+              url: `/pages/chat/index?id=${res.conversation_id}&name=${encodeURIComponent(user.nickname)}&peer=${user.id}`,
             })
           }
         },

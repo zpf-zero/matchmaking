@@ -33,6 +33,13 @@ const filters = reactive({
   car_status: 0,
 })
 
+// 记住上次的筛选条件：每次进来都重设一遍太烦
+const FILTER_KEY = 'search_filters'
+const saved = uni.getStorageSync(FILTER_KEY)
+if (saved && typeof saved === 'object') {
+  Object.assign(filters, saved)
+}
+
 onShow(() => {
   store.fetchDict()
 })
@@ -80,6 +87,7 @@ function reset() {
     education_min: 0, income_min: 0, marital_status: '', has_children: '',
     city_code: '', city_name: '', house_status: 0, car_status: 0,
   })
+  uni.removeStorageSync(FILTER_KEY)
 }
 
 async function doSearch(resetPage = true) {
@@ -90,6 +98,7 @@ async function doSearch(resetPage = true) {
     page.value = 1
     finished.value = false
     panelOpen.value = false
+    uni.setStorageSync(FILTER_KEY, { ...filters })
   }
 
   const params: Record<string, any> = { page: page.value, page_size: 20 }

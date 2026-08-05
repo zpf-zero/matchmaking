@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
 import FormRow from '@/components/FormRow.vue'
 import { authApi, userApi } from '@/api'
 import { useUserStore } from '@/stores/user'
@@ -111,7 +111,48 @@ onLoad(async (query) => {
   }
 
   if (isEdit.value) step.value = 1
+
+  // 首次注册且服务端没有资料时，尝试恢复本地草稿。
+  // 4 步表单填一半退出全丢，等于直接流失一个注册
+  if (!isEdit.value && !store.profile) {
+    restoreDraft()
+  }
 })
+
+// ---------- 草稿 ----------
+const DRAFT_KEY = 'profile_draft'
+
+function saveDraft() {
+  if (isEdit.value) return // 编辑模式以服务端数据为准，不存草稿
+  uni.setStorageSync(DRAFT_KEY, {
+    form: { ...form },
+    req: { ...req },
+    acceptMarital: { ...acceptMarital },
+    step: step.value,
+  })
+}
+
+function restoreDraft() {
+  const draft = uni.getStorageSync(DRAFT_KEY)
+  if (!draft || !draft.form) return
+  // 手机号可能已经绑定过，服务端的值优先
+  const phone = form.phone
+  Object.assign(form, draft.form)
+  if (phone) form.phone = phone
+  Object.assign(req, draft.req || {})
+  Object.assign(acceptMarital, draft.acceptMarital || {})
+  if (draft.step > 1) {
+    step.value = draft.step
+    uni.showToast({ title: '已恢复上次填写的内容', icon: 'none' })
+  }
+}
+
+function clearDraft() {
+  uni.removeStorageSync(DRAFT_KEY)
+}
+
+// 中途退出（返回、杀进程前的页面卸载）时兜底保存
+onUnload(saveDraft)
 
 // ---------- 选择器 ----------
 function pickDict(type: string, field: keyof typeof form) {
@@ -210,6 +251,7 @@ async function next() {
 
   if (step.value < 4) {
     step.value++
+    saveDraft() // 每完成一步存一次，中途退出不丢
     uni.pageScrollTo({ scrollTop: 0, duration: 0 })
     return
   }
@@ -234,6 +276,7 @@ async function submit() {
     }
 
     await store.fetchMe()
+    clearDraft()
     uni.hideLoading()
 
     uni.showModal({

@@ -161,6 +161,56 @@ func SendMessage(me *model.User, convID uint64, msgType int8, content string) (*
 	return &msg, nil
 }
 
+// RecallMessage 撤回消息。仅限本人、2 分钟内
+func RecallMessage(me *model.User, msgID uint64) error {
+	var msg model.Message
+	if err := db.DB.First(&msg, msgID).Error; err != nil {
+		return Biz("消息不存在")
+	}
+	if msg.FromUserID != me.ID {
+		return Biz("只能撤回自己发的消息")
+	}
+	if msg.Type == model.MsgSystem {
+		return Biz("该消息不能撤回")
+	}
+	if time.Since(msg.CreatedAt) > 2*time.Minute {
+		return Biz("发出超过 2 分钟的消息不能撤回")
+	}
+
+	conv, err := checkConversation(me, msg.ConversationID)
+	if err != nil {
+		return err
+	}
+
+	err = db.DB.Transaction(func(tx *gorm.DB) error {
+		// 转成系统消息占位，前端按 from_user_id 显示「你/对方 撤回了一条消息」
+		if err := tx.Model(&msg).Updates(map[string]any{
+			"type":    model.MsgSystem,
+			"content": "撤回了一条消息",
+		}).Error; err != nil {
+			return err
+		}
+		// 撤回的恰好是最后一条时，同步刷新会话摘要
+		var latest model.Message
+		if err := tx.Where("conversation_id = ?", conv.ID).
+			Order("id DESC").First(&latest).Error; err == nil && latest.ID == msg.ID {
+			return tx.Model(&model.Conversation{}).Where("id = ?", conv.ID).
+				Update("last_message", "[消息已撤回]").Error
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	ws.Push(conv.PeerID(me.ID), "recall", map[string]any{
+		"conversation_id": conv.ID,
+		"message_id":      msg.ID,
+		"from_user_id":    me.ID,
+	})
+	return nil
+}
+
 // MarkConvRead 会话已读
 func MarkConvRead(me *model.User, convID uint64) error {
 	conv, err := checkConversation(me, convID)
@@ -269,6 +319,22 @@ func handleWSMessage(userID uint64, msgType string, data json.RawMessage) {
 		if err := MarkConvRead(&u, req.ConversationID); err != nil {
 			logger.Debugf("标记已读失败 uid=%d conv=%d: %v", userID, req.ConversationID, err)
 		}
+
+	case "typing":
+		// 正在输入提示：只做转发，不落库
+		var req struct {
+			ConversationID uint64 `json:"conversation_id"`
+		}
+		if err := json.Unmarshal(data, &req); err != nil {
+			return
+		}
+		conv, err := checkConversation(&u, req.ConversationID)
+		if err != nil {
+			return
+		}
+		ws.Push(conv.PeerID(u.ID), "typing", map[string]any{
+			"conversation_id": conv.ID,
+		})
 
 	default:
 		ws.Push(userID, "error", map[string]string{"message": "不支持的消息类型: " + msgType})

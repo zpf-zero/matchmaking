@@ -3,10 +3,48 @@ import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import { ws } from '@/utils/ws'
 
+/**
+ * 全局实时通知。
+ * 用户在任何页面被喜欢/配对成功都能立刻感知，
+ * 而不是要等切到消息页才发现。
+ */
+function setupGlobalNotify(store: ReturnType<typeof useUserStore>) {
+  ws.on('like', (data: any) => {
+    store.fetchUnread()
+    uni.showToast({
+      title: `${data?.nickname || '有人'} 喜欢了你 ❤`,
+      icon: 'none',
+      duration: 2500,
+    })
+  })
+
+  ws.on('match', (data: any) => {
+    store.fetchUnread()
+    const name = data?.peer?.nickname || '对方'
+    uni.showModal({
+      title: '配对成功',
+      content: `你和 ${name} 互相喜欢，现在可以聊天了`,
+      confirmText: '去聊天',
+      cancelText: '稍后',
+      success: (r) => {
+        if (r.confirm && data?.conversation_id) {
+          uni.navigateTo({
+            url: `/pages/chat/index?id=${data.conversation_id}&name=${encodeURIComponent(name)}&peer=${data?.peer?.id || ''}`,
+          })
+        }
+      },
+    })
+  })
+
+  // 收到新消息刷新红点（聊天页会自己处理消息本身）
+  ws.on('message', () => store.fetchUnread())
+}
+
 onLaunch(async () => {
   const store = useUserStore()
   store.fetchConfig()
   store.fetchDict()
+  setupGlobalNotify(store)
 
   if (!store.isLogin) {
     uni.reLaunch({ url: '/pages/login/index' })

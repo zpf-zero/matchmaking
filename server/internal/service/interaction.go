@@ -44,9 +44,9 @@ func Like(me *model.User, toID uint64) (*LikeResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	// 双方都推，多端在线时同步弹配对成功
+	// 只推给被动方：发起方已经从 HTTP 响应里拿到 is_match 并弹窗，
+	// 再推一次会导致前端全局通知重复弹
 	PushMatch(toID, conv, me)
-	PushMatch(me.ID, conv, target)
 
 	return &LikeResult{
 		IsMatch:        true,

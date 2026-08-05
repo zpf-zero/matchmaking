@@ -99,8 +99,23 @@ export const useUserStore = defineStore('user', {
       if (!this.canBrowse) return
       try {
         this.unread = await (await import('@/api')).interactionApi.unreadCount()
+        this.syncTabBadge()
       } catch {
         // 红点失败静默处理
+      }
+    },
+
+    /** 消息 Tab 角标。挂在 fetchUnread 后自动同步 */
+    syncTabBadge() {
+      const n = this.unread.message + this.unread.liked_me
+      if (n > 0) {
+        uni.setTabBarBadge({
+          index: 2,
+          text: n > 99 ? '99+' : String(n),
+          fail: () => {}, // 当前不在 tabBar 页面时会失败，忽略
+        })
+      } else {
+        uni.removeTabBarBadge({ index: 2, fail: () => {} })
       }
     },
 

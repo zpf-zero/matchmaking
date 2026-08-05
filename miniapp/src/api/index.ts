@@ -78,6 +78,7 @@ export const chatApi = {
       msg_type: msgType,
     }),
   read: (conversationId: number) => http.put('/message/read', { conversation_id: conversationId }),
+  recall: (messageId: number) => http.put('/message/recall', { message_id: messageId }),
 }
 
 export const commonApi = {

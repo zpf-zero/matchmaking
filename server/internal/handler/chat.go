@@ -76,6 +76,23 @@ func SendMessage(c *gin.Context) {
 	response.OK(c, msg)
 }
 
+// RecallMessage 撤回消息（2 分钟内）
+// PUT /api/v1/message/recall
+func RecallMessage(c *gin.Context) {
+	var req struct {
+		MessageID uint64 `json:"message_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamError(c, "参数错误")
+		return
+	}
+	if err := service.RecallMessage(middleware.CurrentUser(c), req.MessageID); err != nil {
+		fail(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
 // ReadMessages 标记会话已读
 // PUT /api/v1/message/read
 func ReadMessages(c *gin.Context) {

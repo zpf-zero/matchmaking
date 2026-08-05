@@ -80,6 +80,7 @@ func Setup() *gin.Engine {
 		active.GET("/message/list", handler.ListMessages)
 		active.POST("/message/send", handler.SendMessage)
 		active.PUT("/message/read", handler.ReadMessages)
+		active.PUT("/message/recall", handler.RecallMessage)
 	}
 
 	// WebSocket。小程序握手无法带自定义 header，token 从 query 取
