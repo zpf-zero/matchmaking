@@ -14,16 +14,29 @@
 **C 端**
 - 微信登录 + 手机号绑定（凭证到位前走 Mock 模式）
 - 4 步资料填写向导（**草稿自动保存**，中途退出重进可恢复）、择偶要求、相册管理
-- 首页推荐流（异性 + 择偶要求过滤 + 双向匹配度展示，按活跃排序）
+- 首页推荐流（异性 + 年龄/身高/学历/收入/婚史/子女/期望城市过滤 + 双向匹配度展示，按活跃排序）
 - 多条件筛选（9 个维度，**条件自动记忆**）
 - 喜欢 / 不喜欢，互相喜欢即配对；谁喜欢我 / 我喜欢谁 / 谁看过我
-- 站内聊天：WebSocket 实时收发、图片消息、**2 分钟内撤回**、**「正在输入」提示**、时间分隔线、空会话破冰话题、顶部对方资料入口
+- 站内聊天：WebSocket 实时收发、图片消息、**2 分钟内撤回**、**「正在输入」提示**、时间分隔线、空会话破冰话题、发送超时提示与点击重试
 - **全局实时通知**：任意页面被喜欢弹 toast、配对成功弹窗直达聊天；消息 Tab 未读角标
 - 举报 / 拉黑（双向不可见）/ 账号注销
 - 敏感词 + 联系方式检测（防私下引流与诈骗）
+- 用户协议 / 隐私政策草案页、登录勾选、TabBar 图标和主要空状态
 
 **管理端**（同一个小程序内，`role > 1` 可见）
 - 数据概览、资料审核（含相册一屏审完）、举报处理、用户管理（封禁/解封）
+- 未提交的资料草稿不会进入审核队列；已通过用户修改资料或新增照片会自动进入复审
+
+---
+
+## 关键业务规则
+
+- **审核队列**：新用户只有正式提交审核后才出现；已通过用户修改资料或新增照片时进入复审，待审照片不对外展示。
+- **推荐结果**：仅展示状态正常、资料审核通过、异性且双方未拉黑的用户；推荐流额外排除我已喜欢或跳过的人。
+- **活跃排序**：鉴权请求最多每 5 分钟更新一次活跃时间；年龄字段每天自动批量修正一次。
+- **推荐分页**：喜欢后立即移除本地卡片并重新拉取第一页，避免 OFFSET 分页因结果集变化漏数据。
+- **聊天可靠性**：WebSocket 未连接时走 HTTP 发送；发送后 10 秒未收到 ACK 会显示失败，可点击重试。
+- **开发阶段降级**：AppID/AppSecret 未到位时保留 Mock 登录、手填手机号和本地文本过滤，不启用必须依赖真实微信凭证的能力。
 
 ---
 
@@ -51,9 +64,12 @@ matchmaking/
     ├── config.prod.yaml     生产接口地址
     ├── scripts/             构建前生成前端配置
     └── src/
+        ├── config.generated.ts  YAML 自动生成的接口地址
         ├── api/ stores/ utils/ components/
+        ├── static/tabbar/       TabBar 图标
         └── pages/
             ├── login/ profile/ index/ search/ message/ chat/ mine/ user/ ...
+            ├── common/      状态页、用户协议、隐私政策
             └── admin/       管理页面（role > 1 才显示入口）
 ```
 
@@ -93,7 +109,16 @@ npm install
 npm run dev:mp-weixin
 ```
 
-`predev:mp-weixin` 会先读取 `miniapp/config.dev.yaml`，生成 `src/config.generated.ts`。然后用**微信开发者工具**导入 `miniapp/dist/dev/mp-weixin` 目录。
+不同命令会在构建前读取对应 YAML 并生成 `src/config.generated.ts`：
+
+| 命令 | 配置文件 | 输出 |
+|---|---|---|
+| `npm run dev:mp-weixin` | `config.dev.yaml` | `dist/dev/mp-weixin` |
+| `npm run build:mp-weixin` | `config.prod.yaml` | `dist/build/mp-weixin` |
+| `npm run dev:h5` | `config.dev.yaml` | H5 开发服务 |
+| `npm run build:h5` | `config.prod.yaml` | H5 构建目录 |
+
+然后用**微信开发者工具**导入对应的微信小程序输出目录。`miniapp/dist` 是构建产物，已从源码版本管理中移除。
 
 ⚠️ 开发者工具需勾选 **详情 → 本地设置 → 不校验合法域名**（`manifest.json` 里已配 `urlCheck: false`，但工具端也要确认）。
 
@@ -108,7 +133,7 @@ AppID / AppSecret 尚未到位，`server/config.dev.yaml` 中 `wechat.mock: true
 | 登录 | 登录页手填一个字符串作为 openid，**同一个值 = 同一个账号** |
 | 手机号 | 资料向导第一步手填，不走微信授权 |
 | 文本内容安全 | 走本地敏感词库 + 联系方式正则 |
-| 图片内容安全 | 不做机器检测，全部转人工审核 |
+| 图片内容安全 | 头像和相册走人工审核；聊天图片保留举报处理能力，真实微信图片安全接口后续接入 |
 
 **测试账号**：登录页填 `mock_admin` 即可获得超级管理员（配置在 `server/config.dev.yaml` 的 `admin.super_admin_openids`）；填 `test_user_1`、`test_user_2` 等模拟普通用户。
 
@@ -123,7 +148,7 @@ wechat:
   app_secret: "..."
 ```
 
-再把 `miniapp/src/manifest.json` 的 `mp-weixin.appid` 填上。
+再把 `miniapp/src/manifest.json` 的 `mp-weixin.appid` 填上，并在 `miniapp/config.prod.yaml` 中填写正式 HTTPS 服务地址。
 
 ---
 
