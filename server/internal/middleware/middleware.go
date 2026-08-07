@@ -69,6 +69,15 @@ func Auth() gin.HandlerFunc {
 			return
 		}
 
+		now := time.Now()
+		if u.LastActiveAt == nil || now.Sub(*u.LastActiveAt) >= 5*time.Minute {
+			if err := db.DB.Model(&u).UpdateColumn("last_active_at", now).Error; err != nil {
+				logger.Warnf("更新活跃时间失败 uid=%d: %v", u.ID, err)
+			} else {
+				u.LastActiveAt = &now
+			}
+		}
+
 		c.Set(ctxUserKey, &u)
 		c.Next()
 	}
@@ -124,7 +133,11 @@ func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
-		if raw := c.Request.URL.RawQuery; raw != "" {
+		query := c.Request.URL.Query()
+		if query.Has("token") {
+			query.Set("token", "***")
+		}
+		if raw := query.Encode(); raw != "" {
 			path += "?" + raw
 		}
 

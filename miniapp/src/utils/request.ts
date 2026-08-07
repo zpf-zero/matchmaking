@@ -1,5 +1,6 @@
-/** 后端地址。开发阶段微信开发者工具需勾选「不校验合法域名」 */
-export const BASE_URL = 'http://localhost:8080'
+import { BASE_URL } from '@/config.generated'
+
+export { BASE_URL }
 export const API_URL = BASE_URL + '/api/v1'
 
 export interface Resp<T = any> {

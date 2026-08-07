@@ -1,1 +1,0 @@
-<view class="page data-v-da3830b6"><view class="icon data-v-da3830b6">{{a}}</view><view class="title data-v-da3830b6">{{b}}</view><view class="desc data-v-da3830b6">{{c}}</view><view wx:if="{{d}}" class="btn-primary data-v-da3830b6" bindtap="{{f}}">{{e}}</view></view>

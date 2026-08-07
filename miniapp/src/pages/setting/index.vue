@@ -14,11 +14,7 @@ function maskPhone(p: string) {
 }
 
 function showAgreement(type: 'user' | 'privacy') {
-  uni.showModal({
-    title: type === 'user' ? '用户协议' : '隐私政策',
-    content: '协议文本待补充。提审前必须提供正式文本。',
-    showCancel: false,
-  })
+  uni.navigateTo({ url: `/pages/common/agreement?type=${type}` })
 }
 
 function logout() {

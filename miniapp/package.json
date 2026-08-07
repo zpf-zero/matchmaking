@@ -4,9 +4,15 @@
   "private": true,
   "description": "婚介小程序（含管理页面）",
   "scripts": {
+    "config:dev": "node scripts/generate-config.mjs dev",
+    "config:prod": "node scripts/generate-config.mjs prod",
+    "predev:mp-weixin": "npm run config:dev",
     "dev:mp-weixin": "uni -p mp-weixin",
+    "prebuild:mp-weixin": "npm run config:prod",
     "build:mp-weixin": "uni build -p mp-weixin",
+    "predev:h5": "npm run config:dev",
     "dev:h5": "uni",
+    "prebuild:h5": "npm run config:prod",
     "build:h5": "uni build"
   },
   "dependencies": {

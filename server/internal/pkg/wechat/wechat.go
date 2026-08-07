@@ -16,7 +16,7 @@ import (
 )
 
 // Client 微信接口。Mock 与真实是同一接口的两个实现，
-// 拿到 AppID/AppSecret 后只需把 config.yaml 里 wechat.mock 改成 false，业务代码不动。
+// 拿到 AppID/AppSecret 后只需把当前环境 YAML 里的 wechat.mock 改成 false，业务代码不动。
 type Client interface {
 	// Code2Session 用 wx.login 的 code 换 openid
 	Code2Session(code string) (string, error)
@@ -51,7 +51,7 @@ func (m *mockClient) IsMock() bool { return true }
 
 // Code2Session mock 下把 code 直接当 openid 用。
 // 开发者工具里换不同的 code 就能模拟多个账号；
-// config.yaml 的超管白名单里填哪个 code，用哪个登录就是超管。
+// 开发环境 YAML 的超管白名单里填哪个 code，用哪个登录就是超管。
 func (m *mockClient) Code2Session(code string) (string, error) {
 	if code == "" {
 		return "", errors.New("code 不能为空")

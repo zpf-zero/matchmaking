@@ -327,6 +327,9 @@ func applyRequirement(q *gorm.DB, req *model.UserRequirement) *gorm.DB {
 	if req.AcceptChildren == 0 {
 		q = q.Where("p.has_children = 0")
 	}
+	if cityCodes := parseStringList(req.CityCodes); len(cityCodes) > 0 {
+		q = q.Where("p.city_code IN ?", cityCodes)
+	}
 	return q
 }
 
@@ -417,6 +420,20 @@ func parseIntList(s string) []int {
 	for _, p := range parts {
 		if v, err := strconv.Atoi(strings.TrimSpace(p)); err == nil {
 			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func parseStringList(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if value := strings.TrimSpace(part); value != "" {
+			out = append(out, value)
 		}
 	}
 	return out

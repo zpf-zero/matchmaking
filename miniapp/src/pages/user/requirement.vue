@@ -26,6 +26,7 @@ const req = reactive({
 
 const acceptMarital = reactive<Record<number, boolean>>({ 1: true, 2: false, 3: false })
 const cityName = ref('')
+const CITY_NAME_KEY = 'requirement_city_name'
 
 onLoad(async () => {
   await store.fetchDict()
@@ -38,6 +39,8 @@ onLoad(async () => {
     ;(r.marital_status || '').split(',').forEach((v) => {
       if (v) acceptMarital[+v] = true
     })
+    const savedCity = uni.getStorageSync(CITY_NAME_KEY)
+    if (savedCity?.code === r.city_codes) cityName.value = savedCity.name || ''
   }
 })
 
@@ -84,6 +87,11 @@ async function save() {
 
   try {
     await userApi.saveRequirement(req)
+    if (req.city_codes && cityName.value) {
+      uni.setStorageSync(CITY_NAME_KEY, { code: req.city_codes, name: cityName.value })
+    } else {
+      uni.removeStorageSync(CITY_NAME_KEY)
+    }
     await store.fetchMe()
     uni.showToast({ title: '已保存' })
     setTimeout(() => uni.navigateBack(), 700)

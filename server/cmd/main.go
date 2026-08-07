@@ -15,7 +15,7 @@ import (
 )
 
 func main() {
-	configPath := flag.String("c", "config.yaml", "配置文件路径")
+	configPath := flag.String("c", "config.dev.yaml", "配置文件路径")
 	flag.Parse()
 
 	if err := config.Load(*configPath); err != nil {
@@ -33,6 +33,7 @@ func main() {
 	sensitive.Init("configs/sensitive_words.txt")
 	wechat.Init()
 	service.InitWS()
+	service.StartMaintenance()
 
 	r := router.Setup()
 	addr := fmt.Sprintf(":%d", config.C.Server.Port)

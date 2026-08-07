@@ -60,9 +60,10 @@ async function handleLike(user: UserCard) {
 
   try {
     const res = await interactionApi.like(user.id)
-    // 表过态的人不再出现在推荐流，本地同步移除，避免刷新才消失
-    list.value = list.value.filter((u) => u.id !== user.id)
+    // 先本地移除保证操作即时生效，再拉第一页避免 OFFSET 翻页漏掉一条
+    list.value = list.value.filter((item) => item.id !== user.id)
     total.value = Math.max(0, total.value - 1)
+    await load(true)
 
     if (res.is_match) {
       uni.showModal({

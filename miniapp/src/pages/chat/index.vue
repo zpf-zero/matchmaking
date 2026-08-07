@@ -18,6 +18,7 @@ const loadingMore = ref(false)
 const noMore = ref(false)
 const sending = ref(false)
 const peerTyping = ref(false)
+const ackTimers = new Map<string, any>()
 
 const myId = () => store.user?.id || 0
 
@@ -52,6 +53,8 @@ onUnload(() => {
   ws.off('error', onWsError)
   ws.off('typing', onWsTyping)
   ws.off('recall', onWsRecall)
+  ackTimers.forEach((timer) => clearTimeout(timer))
+  ackTimers.clear()
 })
 
 async function loadHistory(before = 0) {
@@ -174,6 +177,7 @@ function useIcebreaker(text: string) {
 }
 
 function onWsAck(data: { temp_id: string; message: Message }) {
+  clearAckTimer(data.temp_id)
   const idx = messages.value.findIndex((m) => m._temp_id === data.temp_id)
   if (idx >= 0) {
     messages.value[idx] = data.message
@@ -185,6 +189,7 @@ function onWsAck(data: { temp_id: string; message: Message }) {
 
 function onWsError(data: { message: string; temp_id?: string }) {
   if (data.temp_id) {
+    clearAckTimer(data.temp_id)
     const m = messages.value.find((x) => x._temp_id === data.temp_id)
     if (m) {
       m._sending = false
@@ -192,6 +197,34 @@ function onWsError(data: { message: string; temp_id?: string }) {
     }
   }
   uni.showToast({ title: data.message, icon: 'none' })
+}
+
+function clearAckTimer(tempId: string) {
+  const timer = ackTimers.get(tempId)
+  if (timer) clearTimeout(timer)
+  ackTimers.delete(tempId)
+}
+
+function waitForAck(tempId: string) {
+  clearAckTimer(tempId)
+  ackTimers.set(
+    tempId,
+    setTimeout(() => {
+      ackTimers.delete(tempId)
+      const message = messages.value.find((item) => item._temp_id === tempId)
+      if (!message || !message._sending) return
+      message._sending = false
+      message._failed = true
+      uni.showToast({ title: '消息发送超时，请重试', icon: 'none' })
+    }, 10000)
+  )
+}
+
+function retryMessage(message: Message) {
+  if (!message._failed) return
+  const index = messages.value.indexOf(message)
+  if (index >= 0) messages.value.splice(index, 1)
+  doSend(message.content, message.type)
 }
 
 async function send() {
@@ -250,7 +283,9 @@ async function doSend(content: string, msgType: number) {
       temp_id: tempId,
     })
 
-  if (!ok) {
+  if (ok) {
+    waitForAck(tempId)
+  } else {
     try {
       const msg = await chatApi.send(convId.value, content, msgType)
       const idx = messages.value.findIndex((m) => m._temp_id === tempId)
@@ -361,7 +396,7 @@ function unmatch() {
             </view>
             <view v-if="m._sending || m._failed" class="msg-meta">
               <text v-if="m._sending" class="sending">发送中</text>
-              <text v-else class="failed">发送失败</text>
+              <text v-else class="failed" @click="retryMessage(m)">发送失败，点击重试</text>
             </view>
           </view>
         </template>

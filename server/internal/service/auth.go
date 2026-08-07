@@ -135,9 +135,3 @@ func DeleteAccount(u *model.User) error {
 			Update("status", model.ConvClosed).Error
 	})
 }
-
-// TouchActive 更新活跃时间。推荐流按此排序，所以每次请求都要刷
-func TouchActive(userID uint64) {
-	db.DB.Model(&model.User{}).Where("id = ?", userID).
-		UpdateColumn("last_active_at", time.Now())
-}

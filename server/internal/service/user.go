@@ -228,7 +228,20 @@ func AddPhoto(u *model.User, url string) (*model.UserPhoto, error) {
 		Sort:        int16(count),
 		AuditStatus: model.AuditPending,
 	}
-	if err := db.DB.Create(&p).Error; err != nil {
+	if err := db.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&p).Error; err != nil {
+			return err
+		}
+		if u.Status != model.StatusNormal {
+			return nil
+		}
+		return tx.Model(&model.UserProfile{}).
+			Where("user_id = ?", u.ID).
+			Updates(map[string]any{
+				"audit_status": model.AuditPending,
+				"audit_remark": "",
+			}).Error
+	}); err != nil {
 		return nil, err
 	}
 	return &p, nil

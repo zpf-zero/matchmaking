@@ -52,7 +52,7 @@ type AdminConfig struct {
 	SuperAdminOpenIDs []string `mapstructure:"super_admin_openids"`
 }
 
-// Load 从 config.yaml 加载配置
+// Load 从指定 YAML 文件加载配置
 func Load(path string) error {
 	viper.SetConfigFile(path)
 	if err := viper.ReadInConfig(); err != nil {

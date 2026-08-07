@@ -1,6 +1,0 @@
-{
-  "navigationBarTitleText": "互动",
-  "usingComponents": {
-    "user-card-item": "../../components/UserCardItem"
-  }
-}

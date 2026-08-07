@@ -29,6 +29,8 @@ interface State {
   photos: Photo[]
   dict: Dict
   mockMode: boolean
+  configLoaded: boolean
+  configError: boolean
   unread: { liked_me: number; viewed_me: number; message: number; total: number }
 }
 
@@ -41,7 +43,9 @@ export const useUserStore = defineStore('user', {
     requirement: null,
     photos: [],
     dict: {},
-    mockMode: true,
+    mockMode: false,
+    configLoaded: false,
+    configError: false,
     unread: { liked_me: 0, viewed_me: 0, message: 0, total: 0 },
   }),
 
@@ -87,11 +91,15 @@ export const useUserStore = defineStore('user', {
     },
 
     async fetchConfig() {
+      this.configError = false
       try {
         const cfg = await commonApi.config()
         this.mockMode = cfg.mock_mode
       } catch {
-        // 配置拉不到不影响主流程
+        this.mockMode = false
+        this.configError = true
+      } finally {
+        this.configLoaded = true
       }
     },
 

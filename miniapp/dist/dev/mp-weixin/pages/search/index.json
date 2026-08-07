@@ -1,6 +1,0 @@
-{
-  "navigationBarTitleText": "筛选",
-  "usingComponents": {
-    "user-card-item": "../../components/UserCardItem"
-  }
-}

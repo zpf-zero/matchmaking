@@ -18,7 +18,11 @@ func Overview() map[string]int64 {
 
 	db.DB.Model(&model.User{}).Where("status <> ?", model.StatusIncomplete).Count(&totalUser)
 	db.DB.Model(&model.User{}).Where("created_at >= ?", today).Count(&todayNew)
-	db.DB.Model(&model.UserProfile{}).Where("audit_status = ?", model.AuditPending).Count(&pendingAudit)
+	db.DB.Table("user_profile p").
+		Joins("JOIN user u ON u.id = p.user_id AND u.deleted_at IS NULL").
+		Where("p.deleted_at IS NULL AND p.audit_status = ?", model.AuditPending).
+		Where("u.status IN ?", []int{model.StatusAuditing, model.StatusNormal}).
+		Count(&pendingAudit)
 	db.DB.Model(&model.Report{}).Where("status = ?", model.ReportPending).Count(&pendingReport)
 	db.DB.Model(&model.Conversation{}).Where("status = ?", model.ConvNormal).Count(&matched)
 	db.DB.Model(&model.User{}).
@@ -51,7 +55,10 @@ type AuditItem struct {
 func AuditList(page dto.PageQuery) ([]AuditItem, int64, error) {
 	page.Normalize()
 
-	q := db.DB.Model(&model.UserProfile{}).Where("audit_status = ?", model.AuditPending)
+	q := db.DB.Table("user_profile p").
+		Joins("JOIN user u ON u.id = p.user_id AND u.deleted_at IS NULL").
+		Where("p.deleted_at IS NULL AND p.audit_status = ?", model.AuditPending).
+		Where("u.status IN ?", []int{model.StatusAuditing, model.StatusNormal})
 
 	var total int64
 	if err := q.Session(&gorm.Session{}).Count(&total).Error; err != nil {
@@ -63,9 +70,10 @@ func AuditList(page dto.PageQuery) ([]AuditItem, int64, error) {
 
 	var profiles []model.UserProfile
 	if err := q.Session(&gorm.Session{}).
-		Order("updated_at asc"). // 先提交的先审
+		Select("p.*").
+		Order("p.updated_at asc"). // 先提交的先审
 		Limit(page.PageSize).Offset(page.Offset()).
-		Find(&profiles).Error; err != nil {
+		Scan(&profiles).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -116,6 +124,9 @@ func AuditUser(admin *model.User, userID uint64, pass bool, remark string) error
 	var u model.User
 	if err := db.DB.First(&u, userID).Error; err != nil {
 		return Biz("该用户不存在")
+	}
+	if u.Status == model.StatusIncomplete {
+		return Biz("该用户尚未正式提交审核")
 	}
 
 	var p model.UserProfile
@@ -342,10 +353,10 @@ func AdminReportList(status int, page dto.PageQuery) ([]map[string]any, int64, e
 	list := make([]map[string]any, 0, len(reports))
 	for _, r := range reports {
 		list = append(list, map[string]any{
-			"report":           r,
-			"reason_text":      model.DictLabel("report_reason", int(r.Reason)),
-			"from_nickname":    nameMap[r.FromUserID],
-			"target_nickname":  nameMap[r.TargetUserID],
+			"report":          r,
+			"reason_text":     model.DictLabel("report_reason", int(r.Reason)),
+			"from_nickname":   nameMap[r.FromUserID],
+			"target_nickname": nameMap[r.TargetUserID],
 		})
 	}
 	return list, total, nil

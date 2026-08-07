@@ -3,7 +3,7 @@
 严肃婚恋交友小程序。核心闭环：**微信登录 → 完善资料 → 人工审核 → 条件筛选 → 互相喜欢 → 站内聊天**。
 
 - 前端：uni-app + Vue3 + TypeScript + Pinia（**C 端与管理端同一个小程序**）
-- 后端：Go 1.24 + Gin + GORM + MySQL 8（**C 端与管理端同一套服务**）
+- 后端：Go 1.25 + Gin + GORM + MySQL 5.6+（**C 端与管理端同一套服务**）
 
 设计文档见 `docs/`。
 
@@ -34,7 +34,8 @@ matchmaking/
 ├── docs/                    设计文档（产品 / 数据库 / 接口）
 ├── server/                  Go 后端
 │   ├── cmd/main.go
-│   ├── config.yaml          配置（微信凭证、数据库、超管白名单）
+│   ├── config.dev.yaml      开发配置（默认）
+│   ├── config.prod.yaml     生产配置（域名和凭证申请后填写）
 │   ├── configs/             敏感词库
 │   ├── migrations/          建表脚本
 │   ├── uploads/             图片存储
@@ -46,6 +47,9 @@ matchmaking/
 │       ├── router/ ws/
 │       └── pkg/             wechat / jwt / response / upload / sensitive / logger
 └── miniapp/                 uni-app 小程序
+    ├── config.dev.yaml      开发接口地址
+    ├── config.prod.yaml     生产接口地址
+    ├── scripts/             构建前生成前端配置
     └── src/
         ├── api/ stores/ utils/ components/
         └── pages/
@@ -59,7 +63,7 @@ matchmaking/
 
 ### 1. 数据库
 
-当前使用**云数据库**（MySQL 5.6，连接信息见 `mysql连接方式.txt`），`server/config.yaml` 已配置好，表结构与测试数据已同步，无需额外操作。
+当前使用**云数据库**（MySQL 5.6，连接信息见 `mysql连接方式.txt`），`server/config.dev.yaml` 已配置好，表结构与测试数据已同步，无需额外操作。
 
 如需重建或换库，执行建表脚本即可：
 
@@ -75,7 +79,7 @@ mysql --host=<HOST> --user=<USER> -p <DATABASE> < server/migrations/001_init.sql
 ```powershell
 cd server
 go mod tidy
-go run ./cmd -c config.yaml
+go run ./cmd -c config.dev.yaml
 # 服务跑在 http://localhost:8080
 ```
 
@@ -89,7 +93,7 @@ npm install
 npm run dev:mp-weixin
 ```
 
-然后用**微信开发者工具**导入 `miniapp/dist/dev/mp-weixin` 目录。
+`predev:mp-weixin` 会先读取 `miniapp/config.dev.yaml`，生成 `src/config.generated.ts`。然后用**微信开发者工具**导入 `miniapp/dist/dev/mp-weixin` 目录。
 
 ⚠️ 开发者工具需勾选 **详情 → 本地设置 → 不校验合法域名**（`manifest.json` 里已配 `urlCheck: false`，但工具端也要确认）。
 
@@ -97,7 +101,7 @@ npm run dev:mp-weixin
 
 ## Mock 模式（当前默认）
 
-AppID / AppSecret 尚未到位，`config.yaml` 中 `wechat.mock: true`，此时：
+AppID / AppSecret 尚未到位，`server/config.dev.yaml` 中 `wechat.mock: true`，此时：
 
 | 功能 | Mock 行为 |
 |---|---|
@@ -106,11 +110,11 @@ AppID / AppSecret 尚未到位，`config.yaml` 中 `wechat.mock: true`，此时�
 | 文本内容安全 | 走本地敏感词库 + 联系方式正则 |
 | 图片内容安全 | 不做机器检测，全部转人工审核 |
 
-**测试账号**：登录页填 `mock_admin` 即可获得超级管理员（配置在 `config.yaml` 的 `admin.super_admin_openids`）；填 `test_user_1`、`test_user_2` 等模拟普通用户。
+**测试账号**：登录页填 `mock_admin` 即可获得超级管理员（配置在 `server/config.dev.yaml` 的 `admin.super_admin_openids`）；填 `test_user_1`、`test_user_2` 等模拟普通用户。
 
 ### 拿到微信凭证后如何切换
 
-改 `server/config.yaml` 三行，重启服务即可，**业务代码不用动**：
+在部署使用的 `server/config.prod.yaml` 中填写以下三项，重启服务即可，**业务代码不用动**：
 
 ```yaml
 wechat:
@@ -134,7 +138,7 @@ wechat:
 | 3 | 管理员 | + 用户封禁/解封 |
 | 4 | 超级管理员 | 同上 |
 
-- **首个超管**：`config.yaml` 的 `admin.super_admin_openids` 白名单，命中的 openid 登录时自动置 `role=4`
+- **首个超管**：服务端 YAML 的 `admin.super_admin_openids` 白名单，命中的 openid 登录时自动置 `role=4`
 - **其他管理员**：直接改库 `UPDATE user SET role=2 WHERE id=?`
 - **授权判定**：唯一判定点是 `middleware.RequireRole`。Auth 中间件每次请求回查数据库拿实时 role，**不信任 token 里的声明** —— 否则用户被降级后会有最长 7 天的越权窗口
 - 前端 `role > 1` 才渲染管理入口，那只是体验优化，不是安全措施
@@ -166,11 +170,13 @@ status 与 role 是**两个正交维度**：管理员不填资料也能用管理
 
 ## 真机调试
 
-`miniapp/src/utils/request.ts` 里的 `BASE_URL` 默认是 `http://localhost:8080`，真机访问不到本机。改成局域网 IP：
+开发环境接口地址配置在 `miniapp/config.dev.yaml`。真机访问不到电脑的 `localhost`，改成局域网 IP：
 
-```ts
-export const BASE_URL = 'http://192.168.x.x:8080'
+```yaml
+base_url: "http://192.168.x.x:8080"
 ```
+
+重新执行 `npm run dev:mp-weixin` 后，构建前脚本会自动生成前端配置文件。生产地址后续填写到 `miniapp/config.prod.yaml`。
 
 （`ipconfig` 查本机 IP，确保手机与电脑同一局域网，防火墙放行 8080。）
 
@@ -179,9 +185,8 @@ export const BASE_URL = 'http://192.168.x.x:8080'
 ## 上线前必须补的
 
 1. **主体资质** — 微信「婚恋交友」类目要求企业/个体工商户主体，个人主体无法过审
-2. **《用户协议》《隐私政策》** — 目前登录页/设置页是占位文本
+2. **《用户协议》《隐私政策》最终信息** — 页面和草案已完成，需补充正式运营主体、联系方式和保存期限
 3. **域名 + ICP 备案 + HTTPS**
-4. **对象存储** — 图片现在存本地磁盘，生产环境单机故障即丢数据
-5. **tabBar 图标** — 目前只有文字，没有图标
-6. `config.yaml` 的 `jwt.secret` 必须换掉
-7. `server.mode` 改 `release`
+4. **生产配置** — 填写 `server/config.prod.yaml` 与 `miniapp/config.prod.yaml`
+5. **对象存储** — 图片现在存本地磁盘，生产环境单机故障即丢数据
+6. **微信凭证** — 填写 AppID/AppSecret，关闭 Mock，并配置小程序隐私保护指引

@@ -1,0 +1,27 @@
+server:
+  port: 8080
+  mode: release
+
+mysql:
+  host: ""
+  port: 3306
+  user: ""
+  password: ""
+  database: ""
+
+jwt:
+  secret: ""
+  expire_days: 7
+
+wechat:
+  mock: true
+  app_id: ""
+  app_secret: ""
+
+upload:
+  dir: "./uploads"
+  base_url: ""
+  max_size_mb: 5
+
+admin:
+  super_admin_openids: []

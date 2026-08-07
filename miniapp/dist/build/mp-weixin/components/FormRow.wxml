@@ -1,1 +1,0 @@
-<view class="form-row data-v-b7ac6653"><view class="label data-v-b7ac6653"><text class="data-v-b7ac6653">{{a}}</text><text wx:if="{{b}}" class="req data-v-b7ac6653">*</text></view><view class="{{['content', 'data-v-b7ac6653', c && 'right']}}"><slot/></view></view>

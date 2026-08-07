@@ -1,1 +1,0 @@
-"use strict";const e=require("../common/vendor.js"),o=e.defineComponent({__name:"FormRow",props:{label:{},required:{type:Boolean},alignRight:{type:Boolean}},setup:o=>(o,r)=>e.e({a:e.t(o.label),b:o.required},(o.required,{}),{c:o.alignRight?1:""})}),r=e._export_sfc(o,[["__scopeId","data-v-b7ac6653"]]);wx.createComponent(r);

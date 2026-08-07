@@ -22,6 +22,11 @@ async function handleLogin() {
   loading.value = true
 
   try {
+    if (!store.configLoaded || store.configError) await store.fetchConfig()
+    if (store.configError) {
+      uni.showToast({ title: '配置加载失败，请稍后重试', icon: 'none' })
+      return
+    }
     const code = store.mockMode ? mockCode.value.trim() : await getWxCode()
     if (!code) {
       uni.showToast({ title: '请填写测试账号', icon: 'none' })
@@ -54,11 +59,7 @@ function getWxCode(): Promise<string> {
 }
 
 function openAgreement(type: 'user' | 'privacy') {
-  uni.showModal({
-    title: type === 'user' ? '用户协议' : '隐私政策',
-    content: '协议文本待补充。提审前必须提供正式文本。',
-    showCancel: false,
-  })
+  uni.navigateTo({ url: `/pages/common/agreement?type=${type}` })
 }
 </script>
 
@@ -85,8 +86,22 @@ function openAgreement(type: 'user' | 'privacy') {
         />
       </view>
 
-      <view class="btn-primary" :class="{ disabled: loading }" @click="handleLogin">
-        {{ loading ? '登录中...' : store.mockMode ? '模拟登录' : '微信一键登录' }}
+      <view
+        class="btn-primary"
+        :class="{ disabled: loading || !store.configLoaded }"
+        @click="handleLogin"
+      >
+        {{
+          !store.configLoaded
+            ? '正在加载...'
+            : store.configError
+              ? '重新加载配置'
+              : loading
+              ? '登录中...'
+              : store.mockMode
+                ? '模拟登录'
+                : '微信一键登录'
+        }}
       </view>
 
       <view class="agreement" @click="agreed = !agreed">
