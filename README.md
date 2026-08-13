@@ -107,6 +107,7 @@ go run ./cmd -c config.dev.yaml
 cd miniapp
 npm install
 npm run dev:mp-weixin
+npm run dev:h5
 ```
 
 不同命令会在构建前读取对应 YAML 并生成 `src/config.generated.ts`：
@@ -204,6 +205,19 @@ base_url: "http://192.168.x.x:8080"
 重新执行 `npm run dev:mp-weixin` 后，构建前脚本会自动生成前端配置文件。生产地址后续填写到 `miniapp/config.prod.yaml`。
 
 （`ipconfig` 查本机 IP，确保手机与电脑同一局域网，防火墙放行 8080。）
+
+---
+
+## Ubuntu H5 部署包
+
+当前已经按公网 IP `81.70.160.36` 生成可直接上传的 Ubuntu AMD64 部署包：
+
+- `deploy/ubuntu/web` → `/data/matchmaking/web`
+- `deploy/ubuntu/server` → `/data/matchmaking/server`
+- `deploy/ubuntu/nginx/matchmaking.conf` → Nginx 站点配置模板
+- `deploy/matchmaking-ubuntu-amd64.zip` → 可直接上传并解压的完整部署包
+
+后端使用现有外部 MySQL，H5 和图片地址暂时使用 HTTP 公网 IP。完整上传、启动、日志及 Nginx 配置步骤见 `docs/04-Ubuntu部署.md`。
 
 ---
 

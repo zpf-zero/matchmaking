@@ -4,6 +4,7 @@ import { onShow, onUnload } from '@dcloudio/uni-app'
 import { chatApi } from '@/api'
 import type { Conversation } from '@/api/types'
 import { useUserStore } from '@/stores/user'
+import { parseTime } from '@/utils/time'
 import { ws } from '@/utils/ws'
 
 const store = useUserStore()
@@ -51,8 +52,9 @@ function goInteraction(tab: number) {
 }
 
 function timeText(t: string | null) {
-  if (!t) return ''
-  const d = new Date(t.replace(/-/g, '/').replace(/\..*$/, ''))
+  const ts = parseTime(t)
+  if (Number.isNaN(ts)) return ''
+  const d = new Date(ts)
   const now = new Date()
   const sameDay = d.toDateString() === now.toDateString()
   if (sameDay) {

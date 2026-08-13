@@ -3,25 +3,28 @@ server:
   mode: release
 
 mysql:
-  host: ""
+  host: 101.35.245.54
   port: 3306
-  user: ""
-  password: ""
-  database: ""
+  user: marry_link_dev
+  password: HXchGX66LCMpmcAF
+  database: marry_link_dev
 
 jwt:
-  secret: ""
+  secret: "hunjie-dev-secret-please-change-in-production"
   expire_days: 7
 
 wechat:
-  mock: true
+  mock: true               # ← 拿到 AppID/AppSecret 后改成 false
   app_id: ""
   app_secret: ""
 
 upload:
-  dir: "./uploads"
-  base_url: ""
+  dir: "/data/matchmaking/server/uploads"
+  base_url: "http://81.70.160.36/uploads"
   max_size_mb: 5
 
 admin:
-  super_admin_openids: []
+  # 白名单内的 openid 登录时自动置为超级管理员（role=4）
+  # mock 模式下，openid 就是前端传的 code
+  super_admin_openids:
+    - "mock_admin"

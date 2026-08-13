@@ -2,6 +2,7 @@
 import { computed, reactive, ref } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import FormRow from '@/components/FormRow.vue'
+import RegionPicker from '@/components/RegionPicker.vue'
 import { authApi, userApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { uploadImage } from '@/utils/request'
@@ -174,16 +175,14 @@ function pickReqDict(type: string, field: 'education_min' | 'income_min') {
   })
 }
 
-function onRegionChange(e: any, target: 'live' | 'home') {
-  const [prov, city] = e.detail.value
-  const codes = e.detail.code || []
+function onRegionChange(v: { province: string; city: string; code: string }, target: 'live' | 'home') {
   if (target === 'live') {
-    form.province = prov
-    form.city = city
-    form.city_code = codes[1] || ''
+    form.province = v.province
+    form.city = v.city
+    form.city_code = v.code
   } else {
-    form.home_province = prov
-    form.home_city = city
+    form.home_province = v.province
+    form.home_city = v.city
   }
 }
 
@@ -402,19 +401,19 @@ function prev() {
       </FormRow>
 
       <FormRow label="现居城市" required align-right>
-        <picker mode="region" @change="onRegionChange($event, 'live')">
-          <text :class="{ ph: !form.province }">
-            {{ form.province ? form.province + ' ' + form.city : '请选择' }}
-          </text>
-        </picker>
+        <RegionPicker
+          :province="form.province"
+          :city="form.city"
+          @change="onRegionChange($event, 'live')"
+        />
       </FormRow>
 
       <FormRow label="户籍地" required align-right>
-        <picker mode="region" @change="onRegionChange($event, 'home')">
-          <text :class="{ ph: !form.home_province }">
-            {{ form.home_province ? form.home_province + ' ' + form.home_city : '请选择' }}
-          </text>
-        </picker>
+        <RegionPicker
+          :province="form.home_province"
+          :city="form.home_city"
+          @change="onRegionChange($event, 'home')"
+        />
       </FormRow>
     </view>
 

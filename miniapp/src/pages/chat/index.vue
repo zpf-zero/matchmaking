@@ -5,6 +5,7 @@ import { chatApi } from '@/api'
 import type { Message } from '@/api/types'
 import { useUserStore } from '@/stores/user'
 import { uploadImage } from '@/utils/request'
+import { parseTime } from '@/utils/time'
 import { ws } from '@/utils/ws'
 
 const store = useUserStore()
@@ -128,8 +129,8 @@ function onWsRecall(data: { conversation_id: number; message_id: number }) {
 function onLongPressMsg(m: Message) {
   if (!isMine(m) || m.type === 3 || !m.id) return
   // 2 分钟限制服务端会校验，这里只是提前隐藏入口减少无效点击
-  const created = new Date(m.created_at.replace(/-/g, '/').replace(/\..*$/, '')).getTime()
-  if (Date.now() - created > 2 * 60 * 1000) return
+  const created = parseTime(m.created_at)
+  if (Number.isNaN(created) || Date.now() - created > 2 * 60 * 1000) return
 
   uni.showActionSheet({
     itemList: ['撤回'],
@@ -154,12 +155,10 @@ function showTimeDivider(index: number): boolean {
   return cur - prev > 5 * 60 * 1000
 }
 
-function parseTime(t: string) {
-  return new Date(t.replace(/-/g, '/').replace(/\..*$/, '')).getTime()
-}
-
 function dividerText(t: string) {
-  const d = new Date(parseTime(t))
+  const ts = parseTime(t)
+  if (Number.isNaN(ts)) return ''
+  const d = new Date(ts)
   const now = new Date()
   const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
   if (d.toDateString() === now.toDateString()) return hm

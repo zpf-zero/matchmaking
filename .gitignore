@@ -54,3 +54,7 @@ server/uploads/
 coverage/
 *.cover
 coverage.out
+# Generated Ubuntu deployment artifacts
+# deploy/ubuntu 整个目录都是 deploy/build.ps1 产出的，源文件在 deploy/template 和 deploy/scripts
+deploy/ubuntu/
+deploy/*.zip

@@ -2,6 +2,7 @@
 import { reactive, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import FormRow from '@/components/FormRow.vue'
+import RegionPicker from '@/components/RegionPicker.vue'
 import { userApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 
@@ -25,8 +26,6 @@ const req = reactive({
 })
 
 const acceptMarital = reactive<Record<number, boolean>>({ 1: true, 2: false, 3: false })
-const cityName = ref('')
-const CITY_NAME_KEY = 'requirement_city_name'
 
 onLoad(async () => {
   await store.fetchDict()
@@ -39,8 +38,6 @@ onLoad(async () => {
     ;(r.marital_status || '').split(',').forEach((v) => {
       if (v) acceptMarital[+v] = true
     })
-    const savedCity = uni.getStorageSync(CITY_NAME_KEY)
-    if (savedCity?.code === r.city_codes) cityName.value = savedCity.name || ''
   }
 })
 
@@ -59,14 +56,11 @@ function pickDict(type: string, field: 'education_min' | 'income_min') {
   })
 }
 
-function onRegion(e: any) {
-  const [prov, city] = e.detail.value
-  cityName.value = `${prov} ${city}`
-  req.city_codes = (e.detail.code || [])[1] || ''
+function onRegion(v: { code: string }) {
+  req.city_codes = v.code
 }
 
 function clearCity() {
-  cityName.value = ''
   req.city_codes = ''
 }
 
@@ -87,11 +81,6 @@ async function save() {
 
   try {
     await userApi.saveRequirement(req)
-    if (req.city_codes && cityName.value) {
-      uni.setStorageSync(CITY_NAME_KEY, { code: req.city_codes, name: cityName.value })
-    } else {
-      uni.removeStorageSync(CITY_NAME_KEY)
-    }
     await store.fetchMe()
     uni.showToast({ title: '已保存' })
     setTimeout(() => uni.navigateBack(), 700)
@@ -157,9 +146,7 @@ async function save() {
       </FormRow>
 
       <FormRow label="期望城市" align-right>
-        <picker mode="region" @change="onRegion">
-          <text>{{ cityName || (req.city_codes ? '已设置' : '不限') }}</text>
-        </picker>
+        <RegionPicker :code="req.city_codes" placeholder="不限" @change="onRegion" />
         <text v-if="req.city_codes" class="clear" @click="clearCity">清除</text>
       </FormRow>
     </view>

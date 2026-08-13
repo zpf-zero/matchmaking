@@ -2,6 +2,7 @@
 import { reactive, ref } from 'vue'
 import { onShow, onReachBottom } from '@dcloudio/uni-app'
 import UserCardItem from '@/components/UserCardItem.vue'
+import RegionPicker from '@/components/RegionPicker.vue'
 import { discoverApi } from '@/api'
 import type { UserCard } from '@/api/types'
 import { useUserStore } from '@/stores/user'
@@ -28,7 +29,6 @@ const filters = reactive({
   marital_status: '',
   has_children: '',
   city_code: '',
-  city_name: '',
   house_status: 0,
   car_status: 0,
 })
@@ -37,7 +37,10 @@ const filters = reactive({
 const FILTER_KEY = 'search_filters'
 const saved = uni.getStorageSync(FILTER_KEY)
 if (saved && typeof saved === 'object') {
-  Object.assign(filters, saved)
+  // 只认当前还在用的字段，免得历史版本存下的键被原样发给接口
+  Object.keys(filters).forEach((k) => {
+    if (saved[k] !== undefined) (filters as any)[k] = saved[k]
+  })
 }
 
 onShow(() => {
@@ -75,17 +78,15 @@ function pickChildren() {
   })
 }
 
-function onRegion(e: any) {
-  const [prov, city] = e.detail.value
-  filters.city_name = `${prov} ${city}`
-  filters.city_code = (e.detail.code || [])[1] || ''
+function onRegion(v: { code: string }) {
+  filters.city_code = v.code
 }
 
 function reset() {
   Object.assign(filters, {
     age_min: 0, age_max: 0, height_min: 0, height_max: 0,
     education_min: 0, income_min: 0, marital_status: '', has_children: '',
-    city_code: '', city_name: '', house_status: 0, car_status: 0,
+    city_code: '', house_status: 0, car_status: 0,
   })
   uni.removeStorageSync(FILTER_KEY)
 }
@@ -103,7 +104,6 @@ async function doSearch(resetPage = true) {
 
   const params: Record<string, any> = { page: page.value, page_size: 20 }
   Object.entries(filters).forEach(([k, v]) => {
-    if (k === 'city_name') return
     if (v !== 0 && v !== '') params[k] = v
   })
 
@@ -190,9 +190,9 @@ function labelOr(type: string, value: number, fallback = '不限') {
 
       <view class="row-item">
         <text class="k">所在城市</text>
-        <picker mode="region" class="v ta-r" @change="onRegion">
-          <text>{{ filters.city_name || '不限' }}</text>
-        </picker>
+        <RegionPicker v-slot="{ text }" class="v ta-r" :code="filters.city_code" @change="onRegion">
+          <text>{{ text || '不限' }}</text>
+        </RegionPicker>
       </view>
 
       <view class="row-item" @click="pickDict('house_status', 'house_status')">
