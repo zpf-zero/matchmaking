@@ -87,6 +87,6 @@ function onChange(e: any) {
 
 <style lang="scss" scoped>
 .ph {
-  color: #bbbfc4;
+  color: $text-placeholder;
 }
 </style>

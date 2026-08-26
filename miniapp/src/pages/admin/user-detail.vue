@@ -88,7 +88,7 @@ function preview(urls: string[], i: number) {
             {{ data.user.nickname || '未填写' }}
             <text class="uid">#{{ data.user.id }}</text>
           </view>
-          <view class="sub">{{ store.label('gender', data.user.gender) }} · {{ data.phone || '未绑定' }}</view>
+          <view class="sub">{{ store.label('gender', data.user.gender) }} / {{ data.phone || '未绑定' }}</view>
           <view class="status" :class="'s' + data.user.status">
             {{ statusText[data.user.status] }}
           </view>
@@ -179,14 +179,15 @@ function preview(urls: string[], i: number) {
 
 <style lang="scss" scoped>
 .page {
-  padding: 24rpx 24rpx 60rpx;
+  padding: 28rpx 24rpx 64rpx;
 }
 
 .card {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 24rpx;
-  margin-bottom: 20rpx;
+  background: $bg-card;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
+  padding: 28rpx;
+  margin-bottom: 24rpx;
 }
 
 .top {
@@ -196,8 +197,8 @@ function preview(urls: string[], i: number) {
 .avatar {
   width: 130rpx;
   height: 130rpx;
-  border-radius: 12rpx;
-  background: #f5f6f8;
+  border-radius: $radius;
+  background: $bg-subtle;
 }
 
 .base {
@@ -213,14 +214,14 @@ function preview(urls: string[], i: number) {
 
 .uid {
   font-size: 22rpx;
-  color: #bbbfc4;
+  color: $text-placeholder;
   font-weight: normal;
   margin-left: 10rpx;
 }
 
 .sub {
   font-size: 25rpx;
-  color: #8a8f99;
+  color: $text-weak;
   margin-bottom: 12rpx;
 }
 
@@ -229,31 +230,31 @@ function preview(urls: string[], i: number) {
   font-size: 22rpx;
   padding: 4rpx 16rpx;
   border-radius: 6rpx;
-  background: #f5f6f8;
-  color: #8a8f99;
+  background: $bg-subtle;
+  color: $text-weak;
 
   &.s1 {
-    background: #fff7e8;
-    color: #ff8f1f;
+    background: $warning-light;
+    color: $warning;
   }
 
   &.s2 {
-    background: #e8f8f2;
-    color: #00b578;
+    background: $success-light;
+    color: $success;
   }
 
   &.s3,
   &.s4 {
-    background: #ffece8;
-    color: #f53f3f;
+    background: $danger-light;
+    color: $danger;
   }
 }
 
 .ban-reason {
   margin-top: 20rpx;
   padding: 18rpx;
-  background: #ffece8;
-  color: #f53f3f;
+  background: $danger-light;
+  color: $danger;
   border-radius: 10rpx;
   font-size: 24rpx;
 }
@@ -275,7 +276,7 @@ function preview(urls: string[], i: number) {
 
   .l {
     font-size: 22rpx;
-    color: #8a8f99;
+    color: $text-weak;
   }
 }
 
@@ -297,7 +298,7 @@ function preview(urls: string[], i: number) {
   font-size: 25rpx;
 
   .fk {
-    color: #8a8f99;
+    color: $text-weak;
     width: 80rpx;
   }
 
@@ -312,10 +313,10 @@ function preview(urls: string[], i: number) {
 .intro {
   margin-top: 16rpx;
   padding: 18rpx;
-  background: #f8f9fa;
+  background: $bg-subtle;
   border-radius: 10rpx;
   font-size: 25rpx;
-  color: #4e5969;
+  color: $text-sub;
   line-height: 1.7;
 }
 
@@ -329,14 +330,14 @@ function preview(urls: string[], i: number) {
   width: 150rpx;
   height: 150rpx;
   border-radius: 8rpx;
-  background: #f5f6f8;
+  background: $bg-subtle;
 }
 
 .report-item {
   display: flex;
   align-items: center;
   padding: 14rpx 0;
-  border-bottom: 1rpx solid #f2f3f5;
+  border-bottom: 1rpx solid $border;
   font-size: 24rpx;
 
   &:last-child {
@@ -345,21 +346,21 @@ function preview(urls: string[], i: number) {
 }
 
 .r-reason {
-  color: #f53f3f;
+  color: $danger;
   width: 140rpx;
   flex-shrink: 0;
 }
 
 .r-desc {
   flex: 1;
-  color: #646a73;
+  color: $text-sub;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .r-status {
-  color: #8a8f99;
+  color: $text-weak;
   margin-left: 12rpx;
 }
 
@@ -371,23 +372,23 @@ function preview(urls: string[], i: number) {
   height: 84rpx;
   line-height: 84rpx;
   text-align: center;
-  border-radius: 42rpx;
-  background: #fff;
-  border: 1rpx solid #ebedf0;
-  color: #646a73;
+  border-radius: 12rpx;
+  background: $bg-card;
+  border: 1rpx solid $border;
+  color: $text-sub;
   font-size: 29rpx;
 
   &.danger {
-    background: #fff;
-    border-color: #f53f3f;
-    color: #f53f3f;
+    background: $bg-card;
+    border-color: $danger;
+    color: $danger;
   }
 }
 
 .no-perm {
   text-align: center;
   font-size: 24rpx;
-  color: #bbbfc4;
+  color: $text-placeholder;
   padding: 32rpx;
 }
 </style>

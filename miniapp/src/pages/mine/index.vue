@@ -58,12 +58,20 @@ function go(url: string) {
           <text class="name">{{ store.user?.nickname || '未填写' }}</text>
           <text v-if="roleText" class="role-tag">{{ roleText }}</text>
         </view>
-        <view class="status" :class="statusText.cls">{{ statusText.text }}</view>
-        <view v-if="store.profile" class="complete">
-          资料完整度 {{ store.profile.complete_rate }}%
+        <view class="profile-meta">
+          <view class="status" :class="statusText.cls">{{ statusText.text }}</view>
+          <view v-if="store.profile" class="complete">
+            完整度 {{ store.profile.complete_rate }}%
+          </view>
+        </view>
+        <view v-if="store.profile" class="complete-track" aria-label="资料完整度">
+          <view
+            class="complete-value"
+            :style="{ width: `${store.profile.complete_rate}%` }"
+          ></view>
         </view>
       </view>
-      <text class="arrow">›</text>
+      <text class="profile-action">编辑</text>
     </view>
 
     <view v-if="store.status === Status.Rejected" class="reject-tip">
@@ -71,13 +79,13 @@ function go(url: string) {
     </view>
 
     <!-- 数据 -->
-    <view class="stat-row">
-      <view class="stat" @click="go('/pages/interaction/list?tab=0')">
+    <view class="stat-grid">
+      <view class="stat stat-featured" @click="go('/pages/interaction/list?tab=0')">
         <text class="num">{{ store.unread.liked_me }}</text>
         <text class="lab">新的喜欢</text>
       </view>
       <view class="stat" @click="go('/pages/interaction/list?tab=1')">
-        <text class="num">—</text>
+        <text class="num text-num">查看</text>
         <text class="lab">我喜欢的</text>
       </view>
       <view class="stat" @click="go('/pages/interaction/list?tab=2')">
@@ -89,18 +97,32 @@ function go(url: string) {
     <!-- 菜单 -->
     <view class="menu">
       <view class="menu-item" @click="go('/pages/profile/setup?mode=edit')">
-        <text class="mi-label">我的资料</text><text class="arrow">›</text>
+        <view class="mi-copy">
+          <text class="mi-label">我的资料</text>
+          <text class="mi-note">基础信息与自我介绍</text>
+        </view>
+        <text class="mi-action">编辑</text>
       </view>
       <view class="menu-item" @click="go('/pages/user/requirement')">
-        <text class="mi-label">择偶要求</text><text class="arrow">›</text>
+        <view class="mi-copy">
+          <text class="mi-label">择偶要求</text>
+          <text class="mi-note">年龄、城市与生活状态</text>
+        </view>
+        <text class="mi-action">调整</text>
       </view>
       <view class="menu-item" @click="go('/pages/user/photos')">
-        <text class="mi-label">我的相册</text>
+        <view class="mi-copy">
+          <text class="mi-label">我的相册</text>
+          <text class="mi-note">展示真实的生活状态</text>
+        </view>
         <text class="mi-extra">{{ store.photos.length }}/9</text>
-        <text class="arrow">›</text>
       </view>
       <view class="menu-item" @click="go('/pages/setting/index')">
-        <text class="mi-label">设置</text><text class="arrow">›</text>
+        <view class="mi-copy">
+          <text class="mi-label">设置</text>
+          <text class="mi-note">隐私、黑名单与账号安全</text>
+        </view>
+        <text class="mi-action">进入</text>
       </view>
     </view>
 
@@ -108,34 +130,46 @@ function go(url: string) {
     <view v-if="store.isAdminRole" class="menu admin-menu">
       <view class="menu-title">管理功能</view>
       <view class="menu-item" @click="go('/pages/admin/index')">
-        <text class="mi-label">⚙️ 管理中心</text>
+        <view class="mi-copy">
+          <text class="mi-label">管理中心</text>
+          <text class="mi-note">审核资料、举报和用户</text>
+        </view>
         <view v-if="todo" class="todo-badge">{{ todo }}</view>
-        <text class="arrow">›</text>
+        <text class="mi-action">进入</text>
       </view>
     </view>
-
-    <view class="version">缘来婚恋 v1.0.0</view>
   </view>
 </template>
 
 <style lang="scss" scoped>
 .page {
-  padding: 24rpx 24rpx 60rpx;
+  min-height: calc(100dvh - 188rpx);
+  padding: 28rpx 24rpx 64rpx;
 }
 
 .profile-card {
   display: flex;
   align-items: center;
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 32rpx 24rpx;
+  background: $bg-raised;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
+  padding: 34rpx 30rpx;
+  box-shadow: $shadow-card;
+  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 200ms ease, box-shadow 200ms ease;
+
+  &:active {
+    transform: scale(0.985);
+    border-color: $border-strong;
+    box-shadow: none;
+  }
 }
 
 .avatar {
-  width: 128rpx;
-  height: 128rpx;
-  border-radius: 50%;
-  background: #f5f6f8;
+  width: 136rpx;
+  height: 136rpx;
+  border-radius: $radius-lg;
+  background: $bg-subtle;
   flex-shrink: 0;
 }
 
@@ -152,102 +186,165 @@ function go(url: string) {
 }
 
 .name {
-  font-size: 34rpx;
-  font-weight: 600;
+  font-size: 38rpx;
+  font-weight: 650;
+  color: $text-main;
+  letter-spacing: -0.5rpx;
 }
 
 .role-tag {
   margin-left: 14rpx;
   font-size: 20rpx;
   padding: 3rpx 12rpx;
-  border-radius: 6rpx;
-  background: #eef5ff;
-  color: #3f7ef5;
+  border-radius: $radius-sm;
+  background: $brand-light;
+  color: $brand;
+}
+
+.profile-meta {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin-bottom: 13rpx;
 }
 
 .status {
   font-size: 24rpx;
-  margin-bottom: 8rpx;
+  font-weight: 500;
 
   &.ok {
-    color: #00b578;
+    color: $success;
   }
 
   &.warn {
-    color: #ff8f1f;
+    color: $warning;
   }
 
   &.danger {
-    color: #f53f3f;
+    color: $danger;
   }
 }
 
 .complete {
   font-size: 22rpx;
-  color: #bbbfc4;
+  color: $text-placeholder;
 }
 
-.arrow {
-  color: #c9cdd4;
-  font-size: 36rpx;
-  margin-left: 10rpx;
+.complete-track {
+  height: 4rpx;
+  background: $bg-subtle;
+  border-radius: $radius-sm;
+  overflow: hidden;
+}
+
+.complete-value {
+  height: 100%;
+  background: $brand;
+  border-radius: inherit;
+}
+
+.profile-action,
+.mi-action {
+  margin-left: 18rpx;
+  color: $brand;
+  font-size: 23rpx;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .reject-tip {
   margin-top: 16rpx;
   padding: 20rpx 24rpx;
-  background: #ffece8;
-  color: #f53f3f;
-  border-radius: 12rpx;
+  background: $danger-light;
+  color: $danger;
+  border-left: 4rpx solid $danger;
+  border-radius: $radius-sm;
   font-size: 24rpx;
   line-height: 1.5;
 }
 
-.stat-row {
-  display: flex;
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 32rpx 0;
-  margin-top: 20rpx;
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 1fr;
+  gap: 14rpx;
+  margin-top: 24rpx;
 }
 
 .stat {
-  flex: 1;
+  min-height: 138rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
+  background: $bg-raised;
+  border: 1rpx solid $border;
+  border-radius: $radius;
+  transition: transform 180ms ease, border-color 180ms ease;
+
+  &:active {
+    transform: scale(0.97);
+    border-color: $border-strong;
+  }
 
   .num {
     display: block;
-    font-size: 36rpx;
-    font-weight: 600;
-    color: #1f2329;
+    font-size: 38rpx;
+    font-weight: 650;
+    color: $text-main;
     margin-bottom: 8rpx;
   }
 
+  .text-num {
+    font-size: 25rpx;
+    line-height: 1.7;
+  }
+
   .lab {
-    font-size: 24rpx;
-    color: #8a8f99;
+    font-size: 22rpx;
+    color: $text-weak;
+  }
+}
+
+.stat-featured {
+  background: $bg-accent;
+  border-color: $brand-light;
+
+  .num {
+    color: $brand;
   }
 }
 
 .menu {
-  background: #fff;
-  border-radius: 16rpx;
-  margin-top: 20rpx;
+  background: $bg-raised;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
+  margin-top: 24rpx;
   overflow: hidden;
+  box-shadow: $shadow-card;
+}
+
+.admin-menu {
+  border-color: $brand-light;
 }
 
 .menu-title {
   font-size: 24rpx;
-  color: #8a8f99;
-  padding: 24rpx 24rpx 8rpx;
+  color: $text-weak;
+  padding: 24rpx 24rpx 6rpx;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
-  min-height: 100rpx;
-  padding: 0 24rpx;
-  border-bottom: 1rpx solid #f2f3f5;
+  min-height: 120rpx;
+  padding: 18rpx 24rpx;
+  border-bottom: 1rpx solid $border;
+  transition: background-color 180ms ease;
+
+  &:active {
+    background: $bg-subtle;
+  }
 
   &:last-child {
     border-bottom: none;
@@ -255,13 +352,27 @@ function go(url: string) {
 }
 
 .mi-label {
-  flex: 1;
   font-size: 29rpx;
+  font-weight: 520;
+  color: $text-main;
+}
+
+.mi-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5rpx;
+}
+
+.mi-note {
+  font-size: 22rpx;
+  color: $text-placeholder;
 }
 
 .mi-extra {
   font-size: 26rpx;
-  color: #bbbfc4;
+  color: $text-placeholder;
 }
 
 .todo-badge {
@@ -269,17 +380,10 @@ function go(url: string) {
   height: 36rpx;
   line-height: 36rpx;
   padding: 0 10rpx;
-  border-radius: 18rpx;
-  background: #f53f3f;
-  color: #fff;
+  border-radius: $radius-sm;
+  background: $danger;
+  color: $text-on-accent;
   font-size: 22rpx;
   text-align: center;
-}
-
-.version {
-  text-align: center;
-  font-size: 22rpx;
-  color: #c9cdd4;
-  padding: 60rpx 0 20rpx;
 }
 </style>

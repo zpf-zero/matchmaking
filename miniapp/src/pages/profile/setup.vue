@@ -529,7 +529,7 @@ function prev() {
         <FormRow label="接受有子女" align-right>
           <switch
             :checked="req.accept_children === 1"
-            color="#e8506d"
+          color="#963E58"
             @change="req.accept_children = $event.detail.value ? 1 : 0"
           />
         </FormRow>
@@ -548,13 +548,13 @@ function prev() {
 
 <style lang="scss" scoped>
 .setup {
-  padding: 24rpx 24rpx 180rpx;
+  padding: 28rpx 24rpx 196rpx;
 }
 
 .steps {
   display: flex;
   align-items: center;
-  padding: 20rpx 40rpx 0;
+  padding: 12rpx 8rpx 0;
 }
 
 .step-item {
@@ -567,61 +567,69 @@ function prev() {
   }
 
   .dot {
-    width: 44rpx;
-    height: 44rpx;
-    line-height: 44rpx;
+    width: 48rpx;
+    height: 48rpx;
+    line-height: 48rpx;
     text-align: center;
-    border-radius: 50%;
-    background: #ebedf0;
-    color: #8a8f99;
+    border-radius: $radius-sm;
+    border: 1rpx solid $border;
+    background: $bg-card;
+    color: $text-weak;
     font-size: 24rpx;
     flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
   }
 
   .line {
     flex: 1;
-    height: 4rpx;
-    background: #ebedf0;
+    height: 2rpx;
+    background: $border;
   }
 
   &.active .dot {
-    background: #e8506d;
-    color: #fff;
+    background: $brand;
+    border-color: $brand;
+    color: $text-on-accent;
   }
 
   &.active .line {
-    background: #f5b3c1;
+    background: $brand;
   }
 }
 
 .step-title {
-  font-size: 34rpx;
+  font-size: 38rpx;
   font-weight: 600;
-  padding: 32rpx 8rpx 24rpx;
+  color: $text-main;
+  letter-spacing: -1rpx;
+  padding: 40rpx 4rpx 24rpx;
 
   .step-sub {
     font-size: 24rpx;
-    color: #8a8f99;
+    color: $text-weak;
     font-weight: normal;
     margin-left: 12rpx;
   }
 }
 
 .card {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 8rpx 24rpx;
-  margin-bottom: 20rpx;
+  background: $bg-raised;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
+  padding: 8rpx 28rpx;
+  margin-bottom: 24rpx;
+  box-shadow: $shadow-card;
 }
 
 .section-title {
-  font-size: 30rpx;
+  font-size: 31rpx;
   font-weight: 600;
-  padding: 24rpx 0 8rpx;
+  color: $text-main;
+  padding: 28rpx 0 10rpx;
 }
 
 .ph {
-  color: #bbbfc4;
+  color: $text-placeholder;
 }
 
 .ta-right {
@@ -636,16 +644,16 @@ function prev() {
 .avatar {
   width: 120rpx;
   height: 120rpx;
-  border-radius: 16rpx;
-  background: #f5f6f8;
+  border-radius: $radius;
+  background: $bg-subtle;
 
   &.placeholder {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #bbbfc4;
+    color: $text-placeholder;
     font-size: 48rpx;
-    border: 1rpx dashed #d9dce0;
+    border: 1rpx dashed $border-strong;
   }
 }
 
@@ -660,23 +668,25 @@ function prev() {
   height: 64rpx;
   line-height: 64rpx;
   text-align: center;
-  border-radius: 32rpx;
-  background: #f5f6f8;
-  color: #646a73;
+  border-radius: $radius-sm;
+  border: 1rpx solid $border;
+  background: $bg-card;
+  color: $text-sub;
   font-size: 26rpx;
 
   &.on {
-    background: #e8506d;
-    color: #fff;
+    background: $brand;
+    border-color: $brand;
+    color: $text-on-accent;
   }
 }
 
 .locked {
-  color: #8a8f99;
+  color: $text-weak;
 
   .lock-tip {
     font-size: 22rpx;
-    color: #bbbfc4;
+    color: $text-placeholder;
   }
 }
 
@@ -685,22 +695,23 @@ function prev() {
   height: 240rpx;
   font-size: 28rpx;
   line-height: 1.6;
-  padding: 16rpx 0;
+  padding: 18rpx 0;
+  color: $text-main;
 }
 
 .count {
   text-align: right;
   font-size: 22rpx;
-  color: #8a8f99;
+  color: $text-weak;
 
   &.warn {
-    color: #ff8f1f;
+    color: $warning;
   }
 }
 
 .tip {
   font-size: 22rpx;
-  color: #bbbfc4;
+  color: $text-placeholder;
   padding: 12rpx 0 20rpx;
   line-height: 1.5;
 }
@@ -709,12 +720,13 @@ function prev() {
   display: inline-block;
   min-width: 70rpx;
   text-align: center;
-  color: #e8506d;
+  color: $brand;
+  font-variant-numeric: tabular-nums;
 }
 
 .dash,
 .unit {
-  color: #8a8f99;
+  color: $text-weak;
   margin: 0 6rpx;
 }
 
@@ -726,14 +738,16 @@ function prev() {
 
 .multi-item {
   padding: 8rpx 20rpx;
-  border-radius: 24rpx;
-  background: #f5f6f8;
-  color: #646a73;
+  border-radius: $radius-sm;
+  border: 1rpx solid $border;
+  background: $bg-card;
+  color: $text-sub;
   font-size: 24rpx;
 
   &.on {
-    background: #fff0f3;
-    color: #e8506d;
+    background: $brand-light;
+    border-color: $brand-light;
+    color: $brand;
   }
 }
 
@@ -743,10 +757,11 @@ function prev() {
   right: 0;
   bottom: 0;
   padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom));
-  background: #fff;
+  background: $bg-raised;
+  border-top: 1rpx solid $border;
   display: flex;
   gap: 20rpx;
-  box-shadow: 0 -2rpx 12rpx rgba(0, 0, 0, 0.04);
+  box-shadow: 0 -12rpx 34rpx var(--color-shadow);
 }
 
 .half {

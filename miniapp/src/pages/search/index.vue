@@ -98,6 +98,8 @@ async function doSearch(resetPage = true) {
   if (resetPage) {
     page.value = 1
     finished.value = false
+    searched.value = false
+    list.value = []
     panelOpen.value = false
     uni.setStorageSync(FILTER_KEY, { ...filters })
   }
@@ -133,11 +135,18 @@ function labelOr(type: string, value: number, fallback = '不限') {
 <template>
   <view class="page">
     <view class="panel-head" @click="panelOpen = !panelOpen">
-      <text class="panel-title">筛选条件</text>
-      <text class="panel-toggle">{{ panelOpen ? '收起 ∧' : '展开 ∨' }}</text>
+      <view class="panel-copy">
+        <text class="panel-title">筛选条件</text>
+        <text class="panel-note">条件会自动保存</text>
+      </view>
+      <view class="panel-toggle">
+        <text>{{ panelOpen ? '收起' : '展开' }}</text>
+        <view class="chevron" :class="{ open: panelOpen }"></view>
+      </view>
     </view>
 
     <view v-show="panelOpen" class="card">
+      <view class="filter-group-title">基本条件</view>
       <view class="row-item">
         <text class="k">年龄</text>
         <view class="v">
@@ -174,6 +183,7 @@ function labelOr(type: string, value: number, fallback = '不限') {
         <text class="v ta-r">{{ labelOr('income_level', filters.income_min) }}</text>
       </view>
 
+      <view class="filter-group-title second">生活情况</view>
       <view class="row-item" @click="pickMarital">
         <text class="k">婚姻状况</text>
         <text class="v ta-r">
@@ -213,6 +223,17 @@ function labelOr(type: string, value: number, fallback = '不限') {
 
     <view v-if="searched" class="result-count">共找到 {{ total }} 人</view>
 
+    <view v-if="loading && !searched" class="result-skeleton" aria-label="正在查找">
+      <view v-for="n in 2" :key="n" class="skeleton-result-card">
+        <view class="skeleton skeleton-result-avatar"></view>
+        <view class="skeleton-result-copy">
+          <view class="skeleton skeleton-result-line strong"></view>
+          <view class="skeleton skeleton-result-line"></view>
+          <view class="skeleton skeleton-result-line short"></view>
+        </view>
+      </view>
+    </view>
+
     <UserCardItem v-for="u in list" :key="u.id" :user="u" />
 
     <view v-if="searched && !list.length" class="empty">
@@ -224,49 +245,93 @@ function labelOr(type: string, value: number, fallback = '不限') {
 
 <style lang="scss" scoped>
 .page {
-  padding: 20rpx 24rpx 40rpx;
+  min-height: calc(100dvh - 188rpx);
+  padding: 24rpx 24rpx 48rpx;
 }
 
 .panel-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12rpx 8rpx 20rpx;
+  padding: 12rpx 4rpx 22rpx;
+}
+
+.panel-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 5rpx;
 }
 
 .panel-title {
-  font-size: 30rpx;
-  font-weight: 600;
+  font-size: 35rpx;
+  font-weight: 650;
+  letter-spacing: -0.5rpx;
+}
+
+.panel-note {
+  font-size: 22rpx;
+  color: $text-placeholder;
 }
 
 .panel-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: $brand;
+  font-weight: 600;
+}
+
+.chevron {
+  width: 12rpx;
+  height: 12rpx;
+  border-right: 2rpx solid currentColor;
+  border-bottom: 2rpx solid currentColor;
+  transform: rotate(45deg) translateY(-2rpx);
+  transition: transform 180ms ease;
+
+  &.open {
+    transform: rotate(225deg) translate(-2rpx, -2rpx);
+  }
 }
 
 .card {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 8rpx 24rpx 24rpx;
+  background: $bg-raised;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
+  padding: 0 28rpx 28rpx;
   margin-bottom: 24rpx;
+  box-shadow: $shadow-card;
+}
+
+.filter-group-title {
+  padding: 26rpx 0 8rpx;
+  font-size: 23rpx;
+  color: $text-weak;
+  font-weight: 600;
+
+  &.second {
+    padding-top: 30rpx;
+  }
 }
 
 .row-item {
   display: flex;
   align-items: center;
-  min-height: 92rpx;
-  border-bottom: 1rpx solid #f2f3f5;
+  min-height: 94rpx;
+  border-bottom: 1rpx solid $border;
   font-size: 28rpx;
 
   .k {
     width: 160rpx;
-    color: #1f2329;
+    color: $text-main;
+    font-weight: 500;
     flex-shrink: 0;
   }
 
   .v {
     flex: 1;
-    color: #4e5969;
+    color: $text-sub;
   }
 
   .ta-r {
@@ -276,20 +341,24 @@ function labelOr(type: string, value: number, fallback = '不限') {
 
 .pick {
   display: inline-block;
-  min-width: 90rpx;
+  min-width: 96rpx;
   text-align: center;
-  color: #e8506d;
+  color: $brand;
+  background: $brand-light;
+  border-radius: $radius-sm;
+  padding: 6rpx 10rpx;
+  font-variant-numeric: tabular-nums;
 }
 
 .dash {
-  color: #bbbfc4;
+  color: $text-placeholder;
   margin: 0 10rpx;
 }
 
 .panel-actions {
   display: flex;
   gap: 20rpx;
-  padding-top: 28rpx;
+  padding-top: 30rpx;
 }
 
 .half {
@@ -298,14 +367,58 @@ function labelOr(type: string, value: number, fallback = '不限') {
 
 .result-count {
   font-size: 26rpx;
-  color: #8a8f99;
-  padding: 8rpx 8rpx 20rpx;
+  color: $text-weak;
+  padding: 10rpx 4rpx 20rpx;
+  font-variant-numeric: tabular-nums;
+}
+
+.result-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+  margin-bottom: 24rpx;
+}
+
+.skeleton-result-card {
+  display: grid;
+  grid-template-columns: 202rpx 1fr;
+  gap: 26rpx;
+  padding: 18rpx;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
+  background: $bg-raised;
+  box-shadow: $shadow-card;
+}
+
+.skeleton-result-avatar {
+  width: 202rpx;
+  height: 264rpx;
+  border-radius: $radius;
+}
+
+.skeleton-result-copy {
+  padding-top: 14rpx;
+}
+
+.skeleton-result-line {
+  height: 22rpx;
+  border-radius: $radius-sm;
+  margin-bottom: 24rpx;
+
+  &.strong {
+    width: 76%;
+    height: 30rpx;
+  }
+
+  &.short {
+    width: 52%;
+  }
 }
 
 .end {
   text-align: center;
-  color: #bbbfc4;
+  color: $text-placeholder;
   font-size: 24rpx;
-  padding: 30rpx 0;
+  padding: 36rpx 0;
 }
 </style>

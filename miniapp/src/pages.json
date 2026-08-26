@@ -125,13 +125,13 @@
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "缘来婚恋",
-    "navigationBarBackgroundColor": "#FFFFFF",
-    "backgroundColor": "#F5F6F8"
+    "navigationBarBackgroundColor": "#FCFAF9",
+    "backgroundColor": "#F4F1F2"
   },
   "tabBar": {
-    "color": "#8A8F99",
-    "selectedColor": "#E8506D",
-    "backgroundColor": "#FFFFFF",
+    "color": "#6B6661",
+    "selectedColor": "#963E58",
+    "backgroundColor": "#FCFAF9",
     "borderStyle": "white",
     "list": [
       {

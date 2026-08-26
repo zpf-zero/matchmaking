@@ -126,7 +126,7 @@ function goUser(id: number) {
 
 <style lang="scss" scoped>
 .page {
-  padding: 24rpx;
+  padding: 28rpx 24rpx 48rpx;
 }
 
 .filter {
@@ -137,21 +137,24 @@ function goUser(id: number) {
 
 .fi {
   padding: 10rpx 32rpx;
-  border-radius: 28rpx;
-  background: #fff;
-  color: #646a73;
+  border-radius: $radius-sm;
+  border: 1rpx solid $border;
+  background: $bg-card;
+  color: $text-sub;
   font-size: 26rpx;
 
   &.on {
-    background: #e8506d;
-    color: #fff;
+    background: $brand;
+    border-color: $brand;
+    color: $text-on-accent;
   }
 }
 
 .card {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 24rpx;
+  background: $bg-card;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
+  padding: 28rpx;
   margin-bottom: 20rpx;
 }
 
@@ -173,18 +176,18 @@ function goUser(id: number) {
   border-radius: 6rpx;
 
   &.s0 {
-    background: #fff7e8;
-    color: #ff8f1f;
+    background: $warning-light;
+    color: $warning;
   }
 
   &.s1 {
-    background: #e8f8f2;
-    color: #00b578;
+    background: $success-light;
+    color: $success;
   }
 
   &.s2 {
-    background: #f5f6f8;
-    color: #8a8f99;
+    background: $bg-subtle;
+    color: $text-weak;
   }
 }
 
@@ -194,7 +197,7 @@ function goUser(id: number) {
   padding: 8rpx 0;
 
   .k {
-    color: #8a8f99;
+    color: $text-weak;
     width: 110rpx;
   }
 
@@ -203,24 +206,24 @@ function goUser(id: number) {
   }
 
   .link {
-    color: #3f7ef5;
+    color: $brand;
   }
 }
 
 .desc {
   margin-top: 14rpx;
   padding: 18rpx;
-  background: #f8f9fa;
+  background: $bg-subtle;
   border-radius: 10rpx;
   font-size: 25rpx;
-  color: #4e5969;
+  color: $text-sub;
   line-height: 1.6;
 }
 
 .remark {
   margin-top: 14rpx;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: $text-weak;
 }
 
 .actions {
@@ -231,15 +234,15 @@ function goUser(id: number) {
   height: 76rpx;
   line-height: 76rpx;
   text-align: center;
-  border-radius: 38rpx;
-  background: #e8506d;
-  color: #fff;
+  border-radius: 12rpx;
+  background: $brand;
+  color: $text-on-accent;
   font-size: 28rpx;
 }
 
 .end {
   text-align: center;
-  color: #bbbfc4;
+  color: $text-placeholder;
   font-size: 24rpx;
   padding: 30rpx 0;
 }
