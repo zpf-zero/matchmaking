@@ -95,29 +95,30 @@ function preview(i: number) {
 
 <style lang="scss" scoped>
 .page {
-  padding: 24rpx;
+  padding: 28rpx 24rpx 48rpx;
 }
 
 .tip {
   font-size: 24rpx;
-  color: #8a8f99;
+  color: $text-weak;
   line-height: 1.6;
   padding: 0 8rpx 24rpx;
 }
 
 .grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16rpx;
 }
 
 .item {
   position: relative;
-  width: 220rpx;
+  width: 100%;
   height: 220rpx;
-  border-radius: 12rpx;
+  border-radius: $radius;
   overflow: hidden;
-  background: #fff;
+  background: $bg-card;
+  border: 1rpx solid $border;
 }
 
 .img {
@@ -134,7 +135,7 @@ function preview(i: number) {
   line-height: 44rpx;
   text-align: center;
   background: rgba(0, 0, 0, 0.55);
-  color: #fff;
+  color: #fffaf8;
   font-size: 22rpx;
 }
 
@@ -147,7 +148,7 @@ function preview(i: number) {
   line-height: 44rpx;
   text-align: center;
   background: rgba(0, 0, 0, 0.45);
-  color: #fff;
+  color: #fffaf8;
   font-size: 32rpx;
   border-bottom-left-radius: 12rpx;
 }
@@ -157,26 +158,33 @@ function preview(i: number) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 1rpx dashed #d9dce0;
-  background: #fff;
+  border: 1rpx dashed $border-strong;
+  background: $bg-card;
+  transition: transform 180ms ease, background-color 180ms ease;
+
+  &:active {
+    transform: scale(0.98);
+    background: $bg-subtle;
+  }
 }
 
 .plus {
   font-size: 52rpx;
-  color: #c9cdd4;
+  color: $text-placeholder;
   line-height: 1;
   margin-bottom: 12rpx;
 }
 
 .add-text {
   font-size: 22rpx;
-  color: #bbbfc4;
+  color: $text-placeholder;
 }
 
 .count {
   text-align: center;
   font-size: 24rpx;
-  color: #bbbfc4;
-  padding: 32rpx 0;
+  color: $text-placeholder;
+  padding: 36rpx 0;
+  font-variant-numeric: tabular-nums;
 }
 </style>

@@ -87,14 +87,15 @@ const emptyText = () =>
 
 <style lang="scss" scoped>
 .page {
-  padding: 0 24rpx 40rpx;
+  padding: 0 24rpx 48rpx;
 }
 
 .tabs {
   display: flex;
-  background: #fff;
-  border-radius: 16rpx;
-  margin: 20rpx 0 24rpx;
+  background: $bg-card;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
+  margin: 24rpx 0;
   padding: 8rpx;
 }
 
@@ -104,20 +105,21 @@ const emptyText = () =>
   line-height: 72rpx;
   text-align: center;
   font-size: 27rpx;
-  color: #646a73;
-  border-radius: 12rpx;
+  color: $text-sub;
+  border-radius: $radius-sm;
+  transition: background-color 180ms ease, color 180ms ease;
 
   &.on {
-    background: #fff0f3;
-    color: #e8506d;
+    background: $brand-light;
+    color: $brand;
     font-weight: 500;
   }
 }
 
 .end {
   text-align: center;
-  color: #bbbfc4;
+  color: $text-placeholder;
   font-size: 24rpx;
-  padding: 30rpx 0;
+  padding: 36rpx 0;
 }
 </style>

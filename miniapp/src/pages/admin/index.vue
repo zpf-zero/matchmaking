@@ -80,45 +80,47 @@ function go(url: string) {
 
 <style lang="scss" scoped>
 .page {
-  padding: 24rpx;
+  padding: 28rpx 24rpx 48rpx;
 }
 
 .role-bar {
   font-size: 24rpx;
-  color: #8a8f99;
+  color: $text-weak;
   padding: 0 8rpx 20rpx;
 }
 
 .stat-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20rpx;
   margin-bottom: 24rpx;
 }
 
 .stat-card {
-  width: calc(50% - 10rpx);
-  background: #fff;
-  border-radius: 16rpx;
+  background: $bg-card;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
   padding: 32rpx 24rpx;
 
   .num {
     display: block;
     font-size: 44rpx;
     font-weight: 600;
-    color: #1f2329;
+    color: $text-main;
+    font-variant-numeric: tabular-nums;
     margin-bottom: 10rpx;
   }
 
   .lab {
     font-size: 24rpx;
-    color: #8a8f99;
+    color: $text-weak;
   }
 }
 
 .menu {
-  background: #fff;
-  border-radius: 16rpx;
+  background: $bg-card;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
   overflow: hidden;
 }
 
@@ -127,7 +129,12 @@ function go(url: string) {
   align-items: center;
   min-height: 104rpx;
   padding: 0 24rpx;
-  border-bottom: 1rpx solid #f2f3f5;
+  border-bottom: 1rpx solid $border;
+  transition: background-color 180ms ease;
+
+  &:active {
+    background: $bg-subtle;
+  }
 
   &:last-child {
     border-bottom: none;
@@ -141,7 +148,7 @@ function go(url: string) {
 
 .hint {
   font-size: 22rpx;
-  color: #bbbfc4;
+  color: $text-placeholder;
   margin-right: 10rpx;
 }
 
@@ -150,22 +157,22 @@ function go(url: string) {
   height: 36rpx;
   line-height: 36rpx;
   padding: 0 10rpx;
-  border-radius: 18rpx;
-  background: #f53f3f;
-  color: #fff;
+  border-radius: $radius-sm;
+  background: $danger;
+  color: $text-on-accent;
   font-size: 22rpx;
   text-align: center;
 }
 
 .arrow {
-  color: #c9cdd4;
+  color: $text-placeholder;
   font-size: 36rpx;
   margin-left: 10rpx;
 }
 
 .note {
   font-size: 22rpx;
-  color: #bbbfc4;
+  color: $text-placeholder;
   line-height: 1.6;
   padding: 32rpx 8rpx;
 }

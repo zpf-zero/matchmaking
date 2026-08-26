@@ -140,7 +140,7 @@ async function save() {
       <FormRow label="接受有子女" align-right>
         <switch
           :checked="req.accept_children === 1"
-          color="#e8506d"
+          color="#963E58"
           @change="req.accept_children = $event.detail.value ? 1 : 0"
         />
       </FormRow>
@@ -170,21 +170,22 @@ async function save() {
 
 <style lang="scss" scoped>
 .page {
-  padding: 24rpx 24rpx 180rpx;
+  padding: 28rpx 24rpx 196rpx;
 }
 
 .tip {
   font-size: 24rpx;
-  color: #8a8f99;
+  color: $text-weak;
   line-height: 1.6;
   padding: 0 8rpx 20rpx;
 }
 
 .card {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 8rpx 24rpx;
-  margin-bottom: 20rpx;
+  background: $bg-card;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
+  padding: 8rpx 28rpx;
+  margin-bottom: 24rpx;
 }
 
 .label {
@@ -201,26 +202,26 @@ async function save() {
 }
 
 .ph {
-  color: #bbbfc4;
+  color: $text-placeholder;
 }
 
 .pick {
   display: inline-block;
   min-width: 80rpx;
   text-align: center;
-  color: #e8506d;
+  color: $brand;
 }
 
 .dash,
 .unit {
-  color: #8a8f99;
+  color: $text-weak;
   margin: 0 6rpx;
 }
 
 .clear {
   margin-left: 16rpx;
   font-size: 24rpx;
-  color: #bbbfc4;
+  color: $text-placeholder;
 }
 
 .multi {
@@ -231,14 +232,16 @@ async function save() {
 
 .multi-item {
   padding: 8rpx 20rpx;
-  border-radius: 24rpx;
-  background: #f5f6f8;
-  color: #646a73;
+  border-radius: $radius-sm;
+  border: 1rpx solid $border;
+  background: $bg-subtle;
+  color: $text-sub;
   font-size: 24rpx;
 
   &.on {
-    background: #fff0f3;
-    color: #e8506d;
+    background: $brand-light;
+    border-color: $brand-light;
+    color: $brand;
   }
 }
 
@@ -248,6 +251,7 @@ async function save() {
   right: 0;
   bottom: 0;
   padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom));
-  background: #fff;
+  background: $bg-card;
+  border-top: 1rpx solid $border;
 }
 </style>

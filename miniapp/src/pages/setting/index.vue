@@ -103,12 +103,13 @@ function deleteAccount() {
 
 <style lang="scss" scoped>
 .page {
-  padding: 24rpx;
+  padding: 28rpx 24rpx 48rpx;
 }
 
 .group {
-  background: #fff;
-  border-radius: 16rpx;
+  background: $bg-card;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
   margin-bottom: 24rpx;
   overflow: hidden;
 }
@@ -118,7 +119,12 @@ function deleteAccount() {
   align-items: center;
   min-height: 100rpx;
   padding: 0 24rpx;
-  border-bottom: 1rpx solid #f2f3f5;
+  border-bottom: 1rpx solid $border;
+  transition: background-color 180ms ease;
+
+  &:active {
+    background: $bg-subtle;
+  }
 
   &:last-child {
     border-bottom: none;
@@ -136,20 +142,20 @@ function deleteAccount() {
 
 .label-center {
   font-size: 29rpx;
-  color: #646a73;
+  color: $text-sub;
 
   &.danger {
-    color: #f53f3f;
+    color: $danger;
   }
 }
 
 .value {
   font-size: 27rpx;
-  color: #8a8f99;
+  color: $text-weak;
 }
 
 .arrow {
-  color: #c9cdd4;
+  color: $text-placeholder;
   font-size: 36rpx;
   margin-left: 10rpx;
 }
@@ -157,7 +163,7 @@ function deleteAccount() {
 .tip {
   text-align: center;
   font-size: 22rpx;
-  color: #bbbfc4;
+  color: $text-placeholder;
   padding: 12rpx 40rpx;
   line-height: 1.6;
 }

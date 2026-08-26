@@ -1,22 +1,35 @@
-/* 全局设计变量。改这里就能整体换肤 */
+/*
+ * 全局设计令牌。
+ * 色彩使用 CSS 变量，以便 H5 与支持系统主题的小程序端自动切换深色模式。
+ */
 
-$brand: #e8506d; // 主色，克制的玫红，比正红更适合婚恋场景
-$brand-light: #fff0f3;
-$brand-dark: #c93b56;
+$brand: var(--color-accent);
+$brand-light: var(--color-accent-soft);
+$brand-dark: var(--color-accent-strong);
+$text-on-accent: var(--color-on-accent);
 
-$text-main: #1f2329;
-$text-sub: #646a73;
-$text-weak: #8a8f99;
-$text-placeholder: #bbbfc4;
+$text-main: var(--color-ink);
+$text-sub: var(--color-text-secondary);
+$text-weak: var(--color-text-muted);
+$text-placeholder: var(--color-text-faint);
 
-$bg-page: #f5f6f8;
-$bg-card: #ffffff;
-$border: #ebedf0;
+$bg-page: var(--color-canvas);
+$bg-card: var(--color-surface);
+$bg-raised: var(--color-surface-raised);
+$bg-subtle: var(--color-surface-subtle);
+$bg-accent: var(--color-surface-accent);
+$border: var(--color-border);
+$border-strong: var(--color-border-strong);
+$shadow-card: 0 2rpx 2rpx rgba(78, 43, 55, 0.018), 0 14rpx 34rpx var(--color-shadow);
 
-$success: #00b578;
-$warning: #ff8f1f;
-$danger: #f53f3f;
+$success: var(--color-success);
+$success-light: var(--color-success-soft);
+$warning: var(--color-warning);
+$warning-light: var(--color-warning-soft);
+$danger: var(--color-danger);
+$danger-light: var(--color-danger-soft);
 
+/* 4px 内控件、8px 常规容器、12px 重点容器 */
 $radius-sm: 8rpx;
 $radius: 16rpx;
 $radius-lg: 24rpx;
@@ -25,3 +38,4 @@ $gap-xs: 8rpx;
 $gap-sm: 16rpx;
 $gap: 24rpx;
 $gap-lg: 32rpx;
+$gap-xl: 48rpx;

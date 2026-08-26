@@ -51,12 +51,13 @@ function remove(userId: number, nickname: string) {
 
 <style lang="scss" scoped>
 .page {
-  padding: 24rpx;
+  padding: 28rpx 24rpx 48rpx;
 }
 
 .list {
-  background: #fff;
-  border-radius: 16rpx;
+  background: $bg-card;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
   overflow: hidden;
 }
 
@@ -64,7 +65,7 @@ function remove(userId: number, nickname: string) {
   display: flex;
   align-items: center;
   padding: 24rpx;
-  border-bottom: 1rpx solid #f2f3f5;
+  border-bottom: 1rpx solid $border;
 
   &:last-child {
     border-bottom: none;
@@ -74,8 +75,8 @@ function remove(userId: number, nickname: string) {
 .avatar {
   width: 88rpx;
   height: 88rpx;
-  border-radius: 50%;
-  background: #f5f6f8;
+  border-radius: $radius;
+  background: $bg-subtle;
 }
 
 .name {
@@ -86,9 +87,15 @@ function remove(userId: number, nickname: string) {
 
 .btn {
   padding: 10rpx 28rpx;
-  border-radius: 28rpx;
-  border: 1rpx solid #ebedf0;
-  color: #646a73;
+  border-radius: $radius-sm;
+  border: 1rpx solid $border;
+  color: $text-sub;
   font-size: 25rpx;
+  transition: transform 160ms ease, background-color 160ms ease;
+
+  &:active {
+    transform: scale(0.97);
+    background: $bg-subtle;
+  }
 }
 </style>

@@ -24,7 +24,7 @@ const privacySections = [
   { title: '四、信息展示', content: '审核通过的昵称、头像、性别、年龄、所在地、职业、个人介绍和相册等资料会向符合条件的其他用户展示。手机号不会在他人资料页公开展示。' },
   { title: '五、信息共享', content: '我们不会出售用户个人信息。为完成微信登录、手机号授权、内容安全、服务器托管和图片存储，可能在必要范围内向微信及相关技术服务提供方传输信息，并要求其采取安全保护措施。' },
   { title: '六、存储与安全', content: '我们将在实现服务目的所需的合理期限内保存信息，并采取访问控制、身份鉴权、日志审计等措施保护信息安全。具体运营主体、存储地点和保存期限将在小程序正式提审前补充确认。' },
-  { title: '七、用户权利', content: '用户可在小程序内查看和修改个人资料、管理相册和择偶要求、删除聊天关系、拉黑用户，并可通过“设置—注销账号”申请删除账号信息。' },
+  { title: '七、用户权利', content: '用户可在小程序内查看和修改个人资料、管理相册和择偶要求、删除聊天关系、拉黑用户，并可通过“设置-注销账号”申请删除账号信息。' },
   { title: '八、未成年人保护', content: '本服务仅面向年满 18 周岁的用户。我们不主动向未成年人提供婚恋交友服务，发现不符合年龄要求的账号时可停止提供服务。' },
   { title: '九、联系我们', content: '运营主体名称、联系邮箱及投诉渠道尚待主体资质确认，正式提审前将在本页面补充。用户当前可通过小程序内举报功能反馈违规内容。' },
 ]
@@ -51,11 +51,52 @@ const sections = computed(() => (type.value === 'privacy' ? privacySections : us
 </template>
 
 <style lang="scss" scoped>
-.agreement-page { padding: 32rpx; background: #fff; min-height: 100vh; }
-.title { text-align: center; font-size: 40rpx; font-weight: 600; color: #1f2329; }
-.meta { text-align: center; margin-top: 12rpx; font-size: 22rpx; color: #8a8f99; }
-.draft-tip { margin: 32rpx 0; padding: 22rpx 24rpx; border-radius: 12rpx; background: #fff7e8; color: #b76e00; font-size: 24rpx; line-height: 1.7; }
-.section { margin-bottom: 34rpx; }
-.section-title { margin-bottom: 14rpx; font-size: 30rpx; font-weight: 600; color: #1f2329; }
-.section-content { font-size: 27rpx; line-height: 1.9; color: #4e5969; text-align: justify; }
+.agreement-page {
+  min-height: 100dvh;
+  padding: 48rpx 36rpx 80rpx;
+  background: $bg-card;
+}
+
+.title {
+  font-size: 42rpx;
+  font-weight: 600;
+  color: $text-main;
+  letter-spacing: -1rpx;
+}
+
+.meta {
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  color: $text-weak;
+  font-variant-numeric: tabular-nums;
+}
+
+.draft-tip {
+  margin: 36rpx 0 44rpx;
+  padding: 22rpx 24rpx;
+  border-left: 4rpx solid $warning;
+  border-radius: $radius-sm;
+  background: $warning-light;
+  color: $warning;
+  font-size: 24rpx;
+  line-height: 1.7;
+}
+
+.section {
+  margin-bottom: 44rpx;
+}
+
+.section-title {
+  margin-bottom: 16rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: $text-main;
+}
+
+.section-content {
+  font-size: 27rpx;
+  line-height: 1.9;
+  color: $text-sub;
+  text-align: justify;
+}
 </style>

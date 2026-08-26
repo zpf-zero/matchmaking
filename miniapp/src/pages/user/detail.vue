@@ -133,13 +133,18 @@ function doBlock() {
     <!-- 头图 -->
     <view class="hero">
       <image :src="detail.avatar" class="hero-img" mode="aspectFill" @click="previewPhoto(0)" />
-      <view class="hero-mask"></view>
       <view class="hero-info">
-        <view class="hero-name">{{ detail.nickname }}</view>
-        <view class="hero-meta">{{ detail.age }}岁 · {{ detail.height }}cm · {{ detail.city }}</view>
+        <view class="hero-heading">
+          <view class="hero-name">{{ detail.nickname }}</view>
+          <view v-if="detail.match_rate > 0" class="match-badge">{{ detail.match_rate }}% 匹配</view>
+        </view>
+        <view class="hero-meta">
+          <text>{{ detail.age }} 岁</text>
+          <text>{{ detail.height }} cm</text>
+          <text>{{ detail.city }}</text>
+        </view>
       </view>
-      <view class="more" @click="moreActions">···</view>
-      <view v-if="detail.match_rate > 0" class="match-badge">匹配度 {{ detail.match_rate }}%</view>
+      <view class="more" @click="moreActions">更多</view>
     </view>
 
     <!-- 关系提示 -->
@@ -173,10 +178,10 @@ function doBlock() {
           <text class="v">{{ store.label('car_status', detail.car_status) }}</text>
         </view>
         <view class="grid-item">
-          <text class="k">职业</text><text class="v">{{ detail.occupation || '—' }}</text>
+          <text class="k">职业</text><text class="v">{{ detail.occupation || '未填写' }}</text>
         </view>
         <view class="grid-item">
-          <text class="k">院校</text><text class="v">{{ detail.school || '—' }}</text>
+          <text class="k">院校</text><text class="v">{{ detail.school || '未填写' }}</text>
         </view>
         <view class="grid-item">
           <text class="k">现居</text>
@@ -228,7 +233,20 @@ function doBlock() {
     </view>
   </view>
 
-  <view v-else-if="!loading" class="empty">资料加载失败</view>
+  <view v-else-if="loading" class="detail-skeleton" aria-label="正在加载资料">
+    <view class="skeleton skeleton-hero"></view>
+    <view class="skeleton-block">
+      <view class="skeleton skeleton-title"></view>
+      <view class="skeleton skeleton-line"></view>
+      <view class="skeleton skeleton-line short"></view>
+    </view>
+    <view class="skeleton-block compact">
+      <view class="skeleton skeleton-title"></view>
+      <view class="skeleton skeleton-line"></view>
+    </view>
+  </view>
+
+  <view v-else class="empty">资料加载失败</view>
 </template>
 
 <style lang="scss" scoped>
@@ -236,89 +254,139 @@ function doBlock() {
   padding-bottom: 180rpx;
 }
 
+.detail-skeleton {
+  min-height: 100dvh;
+  padding-bottom: 80rpx;
+}
+
+.skeleton-hero {
+  width: 100%;
+  height: 600rpx;
+}
+
+.skeleton-block {
+  margin: 20rpx 24rpx 0;
+  padding: 34rpx 28rpx;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
+  background: $bg-raised;
+
+  &.compact {
+    padding-bottom: 40rpx;
+  }
+}
+
+.skeleton-title {
+  width: 32%;
+  height: 30rpx;
+  margin-bottom: 30rpx;
+  border-radius: $radius-sm;
+}
+
+.skeleton-line {
+  width: 88%;
+  height: 22rpx;
+  margin-bottom: 20rpx;
+  border-radius: $radius-sm;
+
+  &.short {
+    width: 62%;
+  }
+}
+
 .hero {
   position: relative;
-  height: 620rpx;
+  background: $bg-card;
+  border-bottom: 1rpx solid $border;
 }
 
 .hero-img {
   width: 100%;
-  height: 100%;
-  background: #ebedf0;
-}
-
-.hero-mask {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 220rpx;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.55) 100%);
+  height: 600rpx;
+  background: $bg-subtle;
 }
 
 .hero-info {
-  position: absolute;
-  left: 32rpx;
-  bottom: 32rpx;
-  color: #fff;
+  padding: 28rpx 28rpx 30rpx;
+}
+
+.hero-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-bottom: 12rpx;
 }
 
 .hero-name {
-  font-size: 42rpx;
+  font-size: 40rpx;
   font-weight: 600;
-  margin-bottom: 10rpx;
+  color: $text-main;
+  letter-spacing: -1rpx;
 }
 
 .hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 0;
   font-size: 26rpx;
-  opacity: 0.92;
+  color: $text-weak;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-meta text + text::before {
+  content: '/';
+  margin: 0 14rpx;
+  color: $text-placeholder;
 }
 
 .more {
   position: absolute;
   right: 24rpx;
   top: 24rpx;
-  width: 64rpx;
-  height: 64rpx;
-  line-height: 52rpx;
+  min-width: 80rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  padding: 0 16rpx;
   text-align: center;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.3);
-  color: #fff;
-  font-size: 34rpx;
+  border-radius: $radius-sm;
+  background: rgba(37, 35, 33, 0.7);
+  color: #fffaf8;
+  font-size: 23rpx;
+  backdrop-filter: blur(8rpx);
 }
 
 .match-badge {
-  position: absolute;
-  right: 24rpx;
-  bottom: 32rpx;
-  padding: 8rpx 20rpx;
-  border-radius: 28rpx;
-  background: rgba(232, 80, 109, 0.92);
-  color: #fff;
+  color: $brand;
   font-size: 24rpx;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .hint {
   margin: 20rpx 24rpx 0;
   padding: 20rpx 24rpx;
-  background: #fff0f3;
-  color: #e8506d;
-  border-radius: 12rpx;
+  background: $brand-light;
+  color: $brand;
+  border-left: 4rpx solid $brand;
+  border-radius: $radius-sm;
   font-size: 26rpx;
 }
 
 .card {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 28rpx 24rpx;
+  background: $bg-card;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
+  padding: 30rpx 28rpx;
   margin: 20rpx 24rpx 0;
 }
 
 .card-title {
   font-size: 30rpx;
   font-weight: 600;
-  margin-bottom: 20rpx;
+  color: $text-main;
+  margin-bottom: 22rpx;
 }
 
 .grid {
@@ -333,13 +401,13 @@ function doBlock() {
   font-size: 26rpx;
 
   .k {
-    color: #8a8f99;
+    color: $text-weak;
     width: 130rpx;
     flex-shrink: 0;
   }
 
   .v {
-    color: #1f2329;
+    color: $text-main;
     flex: 1;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -350,7 +418,7 @@ function doBlock() {
 .intro {
   font-size: 28rpx;
   line-height: 1.8;
-  color: #4e5969;
+  color: $text-sub;
   white-space: pre-wrap;
 }
 
@@ -363,14 +431,14 @@ function doBlock() {
 .photo {
   width: 210rpx;
   height: 210rpx;
-  border-radius: 12rpx;
-  background: #f5f6f8;
+  border-radius: $radius;
+  background: $bg-subtle;
 }
 
 .safe-tip {
   margin: 24rpx;
   font-size: 22rpx;
-  color: #bbbfc4;
+  color: $text-placeholder;
   line-height: 1.6;
   text-align: center;
 }
@@ -381,10 +449,10 @@ function doBlock() {
   right: 0;
   bottom: 0;
   padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom));
-  background: #fff;
+  background: $bg-card;
+  border-top: 1rpx solid $border;
   display: flex;
   gap: 20rpx;
-  box-shadow: 0 -2rpx 12rpx rgba(0, 0, 0, 0.04);
 }
 
 .half {

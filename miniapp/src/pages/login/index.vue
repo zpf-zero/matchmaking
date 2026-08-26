@@ -66,24 +66,31 @@ function openAgreement(type: 'user' | 'privacy') {
 <template>
   <view class="login">
     <view class="header">
-      <view class="logo">缘</view>
-      <view class="title">缘来婚恋</view>
-      <view class="slogan">认真的人，遇见认真的人</view>
+      <view class="brand-row">
+        <view class="logo">缘</view>
+        <view class="title">缘来婚恋</view>
+      </view>
+      <view class="statement">
+        <text>认真认识，</text>
+        <text>再决定心意</text>
+      </view>
+      <view class="slogan">真实资料人工审核，让每一次认识更有依据。</view>
     </view>
 
     <view class="form">
-      <!-- mock 模式：手填账号标识，换个值就是换个账号 -->
       <view v-if="store.mockMode" class="mock-box">
-        <view class="mock-tip">
-          开发模式：下方内容将作为账号标识（openid），
-          换一个值即可模拟新用户
-        </view>
+        <view class="mock-label">开发账号</view>
+        <view class="mock-tip">输入不同标识可切换测试用户</view>
         <input
           v-model="mockCode"
           class="mock-input"
           placeholder="如 test_user_1"
           placeholder-class="ph"
         />
+      </view>
+
+      <view v-if="store.configError" class="config-state">
+        无法连接服务，请检查网络后重试。
       </view>
 
       <view
@@ -93,11 +100,11 @@ function openAgreement(type: 'user' | 'privacy') {
       >
         {{
           !store.configLoaded
-            ? '正在加载...'
+            ? '正在加载…'
             : store.configError
               ? '重新加载配置'
               : loading
-              ? '登录中...'
+              ? '登录中…'
               : store.mockMode
                 ? '模拟登录'
                 : '微信一键登录'
@@ -117,46 +124,76 @@ function openAgreement(type: 'user' | 'privacy') {
       </view>
     </view>
 
-    <view class="footer">本平台仅向 18 周岁以上单身人士提供服务</view>
+    <view class="footer">
+      <text>仅向 18 周岁以上单身人士提供服务</text>
+      <text class="footer-sep"></text>
+      <text>资料人工审核</text>
+    </view>
   </view>
 </template>
 
 <style lang="scss" scoped>
 .login {
-  min-height: 100vh;
-  padding: 160rpx 60rpx 60rpx;
+  min-height: 100dvh;
+  max-width: 960rpx;
+  margin: 0 auto;
+  padding: 84rpx 48rpx calc(40rpx + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, #fff0f3 0%, #f5f6f8 45%);
+  background: $bg-page;
 }
 
 .header {
-  text-align: center;
-  margin-bottom: 100rpx;
+  margin-bottom: 64rpx;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin-bottom: 80rpx;
 }
 
 .logo {
-  width: 140rpx;
-  height: 140rpx;
-  line-height: 140rpx;
-  margin: 0 auto 32rpx;
-  border-radius: 40rpx;
-  background: #e8506d;
-  color: #fff;
-  font-size: 64rpx;
+  width: 68rpx;
+  height: 68rpx;
+  line-height: 68rpx;
+  border-radius: $radius;
+  background: $bg-raised;
+  border: 1rpx solid $brand;
+  color: $brand;
+  font-family: 'Songti SC', 'STSong', serif;
+  font-size: 32rpx;
   font-weight: 600;
+  text-align: center;
+  box-shadow: $shadow-card;
 }
 
 .title {
-  font-size: 44rpx;
+  font-size: 29rpx;
+  font-weight: 650;
+  color: $text-main;
+  letter-spacing: 2rpx;
+}
+
+.statement {
+  display: flex;
+  flex-direction: column;
+  color: $text-main;
+  font-family: 'Songti SC', 'STSong', 'Noto Serif CJK SC', serif;
+  font-size: 64rpx;
   font-weight: 600;
-  color: #1f2329;
-  margin-bottom: 16rpx;
+  letter-spacing: -2.4rpx;
+  line-height: 1.2;
+  text-wrap: balance;
+  margin-bottom: 24rpx;
 }
 
 .slogan {
+  max-width: 520rpx;
   font-size: 26rpx;
-  color: #8a8f99;
+  color: $text-weak;
+  line-height: 1.75;
 }
 
 .form {
@@ -164,43 +201,69 @@ function openAgreement(type: 'user' | 'privacy') {
 }
 
 .mock-box {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 24rpx;
-  margin-bottom: 40rpx;
+  background: $bg-raised;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
+  padding: 30rpx;
+  margin-bottom: 28rpx;
+  box-shadow: $shadow-card;
+}
+
+.mock-label {
+  font-size: 28rpx;
+  color: $text-main;
+  font-weight: 600;
+  margin-bottom: 6rpx;
 }
 
 .mock-tip {
-  font-size: 22rpx;
-  color: #ff8f1f;
+  font-size: 23rpx;
+  color: $text-weak;
   line-height: 1.6;
-  margin-bottom: 16rpx;
+  margin-bottom: 20rpx;
 }
 
 .mock-input {
-  height: 80rpx;
-  background: #f5f6f8;
-  border-radius: 12rpx;
-  padding: 0 20rpx;
+  height: 88rpx;
+  background: $bg-subtle;
+  border: 1rpx solid transparent;
+  border-radius: $radius;
+  padding: 0 22rpx;
   font-size: 28rpx;
+  transition: border-color 180ms ease, background-color 180ms ease;
+
+  &:focus {
+    border-color: $brand;
+    background: $bg-card;
+  }
 }
 
 .ph {
-  color: #bbbfc4;
+  color: $text-placeholder;
+}
+
+.config-state {
+  margin-bottom: 20rpx;
+  padding: 18rpx 20rpx;
+  border-left: 4rpx solid $danger;
+  background: $danger-light;
+  color: $danger;
+  font-size: 24rpx;
+  line-height: 1.6;
 }
 
 .agreement {
   display: flex;
   align-items: flex-start;
-  margin-top: 40rpx;
-  padding: 0 10rpx;
+  margin-top: 26rpx;
+  padding: 10rpx 0;
 }
 
 .checkbox {
   width: 34rpx;
   height: 34rpx;
-  border: 1rpx solid #c9cdd4;
-  border-radius: 50%;
+  border: 1rpx solid $border-strong;
+  border-radius: $radius-sm;
   margin-right: 14rpx;
   flex-shrink: 0;
   margin-top: 4rpx;
@@ -209,12 +272,12 @@ function openAgreement(type: 'user' | 'privacy') {
   justify-content: center;
 
   &.checked {
-    background: #e8506d;
-    border-color: #e8506d;
+    background: $brand;
+    border-color: $brand;
   }
 
   .tick {
-    color: #fff;
+    color: $text-on-accent;
     font-size: 22rpx;
   }
 }
@@ -222,18 +285,45 @@ function openAgreement(type: 'user' | 'privacy') {
 .agreement .text {
   flex: 1;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: $text-weak;
   line-height: 1.6;
 }
 
 .link {
-  color: #e8506d;
+  color: $brand;
 }
 
 .footer {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16rpx;
   font-size: 22rpx;
-  color: #bbbfc4;
-  padding-bottom: 40rpx;
+  color: $text-placeholder;
+  padding-top: 48rpx;
+}
+
+.form .btn-primary {
+  height: 94rpx;
+  line-height: 94rpx;
+  border-radius: $radius;
+  box-shadow: 0 12rpx 30rpx rgba(118, 43, 67, 0.045);
+}
+
+.footer-sep {
+  width: 1rpx;
+  height: 18rpx;
+  background: $border-strong;
+}
+
+@media (max-height: 700px) {
+  .login {
+    padding-top: 48rpx;
+  }
+
+  .brand-row,
+  .header {
+    margin-bottom: 40rpx;
+  }
 }
 </style>

@@ -109,8 +109,8 @@ function goDetail(id: number) {
           </text>
         </view>
         <view class="meta">
-          {{ u.age ? u.age + '岁 · ' : '' }}{{ store.label('gender', u.gender) }}
-          {{ u.city ? ' · ' + u.city : '' }}
+          {{ u.age ? u.age + '岁 / ' : '' }}{{ store.label('gender', u.gender) }}
+          {{ u.city ? ' / ' + u.city : '' }}
         </view>
         <view class="meta">{{ u.phone || '未绑定手机号' }}</view>
       </view>
@@ -124,7 +124,7 @@ function goDetail(id: number) {
 
 <style lang="scss" scoped>
 .page {
-  padding: 24rpx;
+  padding: 28rpx 24rpx 48rpx;
 }
 
 .search {
@@ -136,23 +136,24 @@ function goDetail(id: number) {
 .search-input {
   flex: 1;
   height: 76rpx;
-  background: #fff;
-  border-radius: 38rpx;
-  padding: 0 28rpx;
+  background: $bg-card;
+  border: 1rpx solid $border;
+  border-radius: $radius-sm;
+  padding: 0 22rpx;
   font-size: 27rpx;
 }
 
 .ph {
-  color: #bbbfc4;
+  color: $text-placeholder;
 }
 
 .search-btn {
   padding: 0 32rpx;
   height: 76rpx;
   line-height: 76rpx;
-  border-radius: 38rpx;
-  background: #e8506d;
-  color: #fff;
+  border-radius: $radius-sm;
+  background: $brand;
+  color: $text-on-accent;
   font-size: 27rpx;
 }
 
@@ -165,28 +166,31 @@ function goDetail(id: number) {
   display: inline-block;
   padding: 8rpx 28rpx;
   margin-right: 14rpx;
-  border-radius: 26rpx;
-  background: #fff;
-  color: #646a73;
+  border-radius: $radius-sm;
+  border: 1rpx solid $border;
+  background: $bg-card;
+  color: $text-sub;
   font-size: 25rpx;
 
   &.on {
-    background: #e8506d;
-    color: #fff;
+    background: $brand;
+    border-color: $brand;
+    color: $text-on-accent;
   }
 }
 
 .count {
   font-size: 24rpx;
-  color: #8a8f99;
+  color: $text-weak;
   padding: 4rpx 8rpx 16rpx;
 }
 
 .item {
   display: flex;
   align-items: center;
-  background: #fff;
-  border-radius: 16rpx;
+  background: $bg-card;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
   padding: 24rpx;
   margin-bottom: 16rpx;
 }
@@ -194,8 +198,8 @@ function goDetail(id: number) {
 .avatar {
   width: 96rpx;
   height: 96rpx;
-  border-radius: 12rpx;
-  background: #f5f6f8;
+  border-radius: $radius;
+  background: $bg-subtle;
   flex-shrink: 0;
 }
 
@@ -222,14 +226,14 @@ function goDetail(id: number) {
 
 .uid {
   font-size: 22rpx;
-  color: #bbbfc4;
+  color: $text-placeholder;
   margin-left: 12rpx;
 }
 
 .role {
   font-size: 20rpx;
-  color: #3f7ef5;
-  background: #eef5ff;
+  color: $brand;
+  background: $brand-light;
   padding: 2rpx 10rpx;
   border-radius: 6rpx;
   margin-left: 10rpx;
@@ -237,7 +241,7 @@ function goDetail(id: number) {
 
 .meta {
   font-size: 23rpx;
-  color: #8a8f99;
+  color: $text-weak;
   margin-top: 4rpx;
 }
 
@@ -246,29 +250,29 @@ function goDetail(id: number) {
   padding: 6rpx 16rpx;
   border-radius: 6rpx;
   flex-shrink: 0;
-  background: #f5f6f8;
-  color: #8a8f99;
+  background: $bg-subtle;
+  color: $text-weak;
 
   &.s1 {
-    background: #fff7e8;
-    color: #ff8f1f;
+    background: $warning-light;
+    color: $warning;
   }
 
   &.s2 {
-    background: #e8f8f2;
-    color: #00b578;
+    background: $success-light;
+    color: $success;
   }
 
   &.s3,
   &.s4 {
-    background: #ffece8;
-    color: #f53f3f;
+    background: $danger-light;
+    color: $danger;
   }
 }
 
 .end {
   text-align: center;
-  color: #bbbfc4;
+  color: $text-placeholder;
   font-size: 24rpx;
   padding: 30rpx 0;
 }

@@ -23,9 +23,9 @@ defineProps<{
 .form-row {
   display: flex;
   align-items: center;
-  min-height: 100rpx;
-  padding: 16rpx 0;
-  border-bottom: 1rpx solid #f2f3f5;
+  min-height: 112rpx;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid $border;
 
   &:last-child {
     border-bottom: none;
@@ -35,23 +35,30 @@ defineProps<{
 .label {
   width: 180rpx;
   flex-shrink: 0;
-  font-size: 28rpx;
-  color: #1f2329;
+  font-size: 26rpx;
+  font-weight: 550;
+  color: $text-main;
 
   .req {
-    color: #f53f3f;
+    color: $danger;
     margin-left: 4rpx;
   }
 }
 
 .content {
   flex: 1;
-  font-size: 28rpx;
-  color: #1f2329;
+  font-size: 27rpx;
+  color: $text-main;
   overflow: hidden;
 
   &.right {
     text-align: right;
+  }
+}
+
+@media (max-width: 340px) {
+  .label {
+    width: 156rpx;
   }
 }
 </style>

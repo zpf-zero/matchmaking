@@ -146,7 +146,7 @@ function calcAge(item: AuditItem) {
         </view>
         <view class="f">
           <text class="fk">院校</text>
-          <text class="fv">{{ item.profile?.school || '—' }}</text>
+          <text class="fv">{{ item.profile?.school || '未填写' }}</text>
         </view>
       </view>
 
@@ -178,19 +178,20 @@ function calcAge(item: AuditItem) {
 
 <style lang="scss" scoped>
 .page {
-  padding: 24rpx;
+  padding: 28rpx 24rpx 48rpx;
 }
 
 .head {
   font-size: 26rpx;
-  color: #8a8f99;
+  color: $text-weak;
   padding: 0 8rpx 20rpx;
 }
 
 .card {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 24rpx;
+  background: $bg-card;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
+  padding: 28rpx;
   margin-bottom: 24rpx;
 }
 
@@ -202,8 +203,8 @@ function calcAge(item: AuditItem) {
 .avatar {
   width: 140rpx;
   height: 140rpx;
-  border-radius: 12rpx;
-  background: #f5f6f8;
+  border-radius: $radius;
+  background: $bg-subtle;
   flex-shrink: 0;
 }
 
@@ -220,14 +221,14 @@ function calcAge(item: AuditItem) {
 
 .gender {
   font-size: 22rpx;
-  color: #8a8f99;
+  color: $text-weak;
   font-weight: normal;
   margin-left: 10rpx;
 }
 
 .sub {
   font-size: 24rpx;
-  color: #8a8f99;
+  color: $text-weak;
   margin-bottom: 6rpx;
 }
 
@@ -235,7 +236,7 @@ function calcAge(item: AuditItem) {
   display: flex;
   flex-wrap: wrap;
   padding: 16rpx 0;
-  border-top: 1rpx solid #f2f3f5;
+  border-top: 1rpx solid $border;
 }
 
 .f {
@@ -245,7 +246,7 @@ function calcAge(item: AuditItem) {
   font-size: 25rpx;
 
   .fk {
-    color: #8a8f99;
+    color: $text-weak;
     width: 90rpx;
     flex-shrink: 0;
   }
@@ -260,10 +261,10 @@ function calcAge(item: AuditItem) {
 
 .intro {
   font-size: 26rpx;
-  color: #4e5969;
+  color: $text-sub;
   line-height: 1.7;
-  background: #f8f9fa;
-  border-radius: 12rpx;
+  background: $bg-subtle;
+  border-radius: $radius;
   padding: 20rpx;
   margin: 12rpx 0 20rpx;
 }
@@ -279,7 +280,7 @@ function calcAge(item: AuditItem) {
   width: 150rpx;
   height: 150rpx;
   border-radius: 8rpx;
-  background: #f5f6f8;
+  background: $bg-subtle;
 }
 
 .actions {
@@ -293,24 +294,24 @@ function calcAge(item: AuditItem) {
   height: 80rpx;
   line-height: 80rpx;
   text-align: center;
-  border-radius: 40rpx;
+  border-radius: 12rpx;
   font-size: 28rpx;
 
   &.reject {
-    background: #fff;
-    border: 1rpx solid #ebedf0;
-    color: #646a73;
+    background: $bg-card;
+    border: 1rpx solid $border;
+    color: $text-sub;
   }
 
   &.pass {
-    background: #e8506d;
-    color: #fff;
+    background: $brand;
+    color: $text-on-accent;
   }
 }
 
 .end {
   text-align: center;
-  color: #bbbfc4;
+  color: $text-placeholder;
   font-size: 24rpx;
   padding: 30rpx 0;
 }

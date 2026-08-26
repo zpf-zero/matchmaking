@@ -25,7 +25,7 @@ const myId = () => store.user?.id || 0
 
 /** 配对后不知道说什么是最大流失点，给几个现成的开场白 */
 const icebreakers = [
-  '你好呀，很高兴认识你 😊',
+  '你好，很高兴认识你',
   '看了你的自我介绍，感觉我们挺有共同点的',
   '周末一般喜欢做什么呀？',
   '你的照片拍得真不错，是在哪里拍的？',
@@ -54,6 +54,7 @@ onUnload(() => {
   ws.off('error', onWsError)
   ws.off('typing', onWsTyping)
   ws.off('recall', onWsRecall)
+  clearTimeout(typingHideTimer)
   ackTimers.forEach((timer) => clearTimeout(timer))
   ackTimers.clear()
 })
@@ -339,7 +340,7 @@ function unmatch() {
     <view class="peer-bar" @click="goPeerDetail">
       <view class="peer-left">
         <text class="peer-name">{{ peerName }}</text>
-        <text v-if="peerTyping" class="typing">正在输入...</text>
+        <text v-if="peerTyping" class="typing">正在输入…</text>
       </view>
       <text v-if="peerId" class="peer-link">查看资料 ›</text>
     </view>
@@ -361,7 +362,7 @@ function unmatch() {
 
         <!-- 空会话：破冰话题 -->
         <view v-if="noMore && !messages.length" class="icebreak">
-          <view class="ib-title">配对成功，不知道说什么？试试这些开场白 👇</view>
+          <view class="ib-title">配对成功，不知道说什么？可以从这些话题开始</view>
           <view
             v-for="(t, i) in icebreakers"
             :key="i"
@@ -406,14 +407,14 @@ function unmatch() {
       <input
         v-model="input"
         class="input"
-        placeholder="说点什么..."
+        placeholder="说点什么…"
         placeholder-class="ph"
         confirm-type="send"
         :adjust-position="true"
         @input="onInput"
         @confirm="send"
       />
-      <view class="img-btn" @click="chooseImage">🖼</view>
+      <view class="img-btn" @click="chooseImage">图片</view>
       <view class="send-btn" :class="{ active: input.trim() }" @click="send">发送</view>
     </view>
 
@@ -427,17 +428,17 @@ function unmatch() {
 .chat {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  background: #f5f6f8;
+  height: 100dvh;
+  background: $bg-page;
 }
 
 .peer-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16rpx 24rpx;
-  background: #fff;
-  border-bottom: 1rpx solid #ebedf0;
+  padding: 18rpx 24rpx;
+  background: $bg-card;
+  border-bottom: 1rpx solid $border;
 }
 
 .peer-left {
@@ -448,17 +449,18 @@ function unmatch() {
 
 .peer-name {
   font-size: 28rpx;
-  font-weight: 500;
+  font-weight: 600;
+  color: $text-main;
 }
 
 .typing {
   font-size: 22rpx;
-  color: #00b578;
+  color: $success;
 }
 
 .peer-link {
   font-size: 24rpx;
-  color: #8a8f99;
+  color: $text-weak;
 }
 
 .icebreak {
@@ -468,34 +470,38 @@ function unmatch() {
 .ib-title {
   text-align: center;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: $text-weak;
   margin-bottom: 20rpx;
+  line-height: 1.6;
 }
 
 .ib-item {
-  background: #fff;
-  border-radius: 14rpx;
+  background: $bg-card;
+  border: 1rpx solid $border;
+  border-radius: $radius;
   padding: 20rpx 24rpx;
   margin-bottom: 14rpx;
   font-size: 27rpx;
-  color: #4e5969;
+  color: $text-sub;
+  transition: transform 160ms ease, background-color 160ms ease;
 
   &:active {
-    background: #fff0f3;
+    background: $brand-light;
+    transform: scale(0.99);
   }
 }
 
 .time-divider {
   text-align: center;
   font-size: 21rpx;
-  color: #bbbfc4;
+  color: $text-placeholder;
   padding: 14rpx 0;
 }
 
 .sys-msg {
   text-align: center;
   font-size: 22rpx;
-  color: #bbbfc4;
+  color: $text-placeholder;
   padding: 10rpx 0;
   margin-bottom: 16rpx;
 }
@@ -513,15 +519,16 @@ function unmatch() {
 .safe-notice {
   text-align: center;
   font-size: 22rpx;
-  color: #bbbfc4;
+  color: $text-placeholder;
   padding: 16rpx 40rpx;
   line-height: 1.6;
 }
 
 .safe-notice {
-  background: #fff7e8;
-  color: #ff8f1f;
-  border-radius: 12rpx;
+  background: $warning-light;
+  color: $warning;
+  border-left: 4rpx solid $warning;
+  border-radius: $radius-sm;
   margin-bottom: 24rpx;
 }
 
@@ -539,54 +546,62 @@ function unmatch() {
 .bubble {
   max-width: 76%;
   padding: 20rpx 24rpx;
-  border-radius: 16rpx;
-  background: #fff;
+  border: 1rpx solid $border;
+  border-radius: $radius;
+  background: $bg-card;
   font-size: 29rpx;
   line-height: 1.5;
-  color: #1f2329;
+  color: $text-main;
   word-break: break-all;
 }
 
 .mine .bubble {
-  background: #e8506d;
-  color: #fff;
+  background: $brand;
+  border-color: $brand;
+  color: $text-on-accent;
 }
 
 .img-msg {
   max-width: 400rpx;
-  border-radius: 16rpx;
-  background: #fff;
+  border-radius: $radius;
+  background: $bg-card;
 }
 
 .msg-meta {
   margin-top: 8rpx;
   font-size: 20rpx;
-  color: #bbbfc4;
+  color: $text-placeholder;
 }
 
 .failed {
-  color: #f53f3f;
+  color: $danger;
 }
 
 .input-bar {
   display: flex;
   align-items: center;
   padding: 16rpx 24rpx;
-  background: #fff;
-  border-top: 1rpx solid #ebedf0;
+  background: $bg-card;
+  border-top: 1rpx solid $border;
 }
 
 .input {
   flex: 1;
   height: 76rpx;
-  background: #f5f6f8;
-  border-radius: 38rpx;
-  padding: 0 28rpx;
+  background: $bg-subtle;
+  border: 1rpx solid transparent;
+  border-radius: $radius-sm;
+  padding: 0 22rpx;
   font-size: 28rpx;
+
+  &:focus {
+    border-color: $brand;
+    background: $bg-card;
+  }
 }
 
 .ph {
-  color: #bbbfc4;
+  color: $text-placeholder;
 }
 
 .img-btn {
@@ -595,7 +610,9 @@ function unmatch() {
   height: 72rpx;
   line-height: 72rpx;
   text-align: center;
-  font-size: 34rpx;
+  color: $text-sub;
+  font-size: 22rpx;
+  font-weight: 500;
 }
 
 .send-btn {
@@ -603,22 +620,28 @@ function unmatch() {
   padding: 0 32rpx;
   height: 76rpx;
   line-height: 76rpx;
-  border-radius: 38rpx;
-  background: #ebedf0;
-  color: #bbbfc4;
+  border-radius: $radius-sm;
+  background: $bg-subtle;
+  color: $text-placeholder;
   font-size: 28rpx;
+  font-weight: 600;
+  transition: transform 160ms ease, background-color 160ms ease;
+
+  &:active {
+    transform: scale(0.97);
+  }
 
   &.active {
-    background: #e8506d;
-    color: #fff;
+    background: $brand;
+    color: $text-on-accent;
   }
 }
 
 .more-bar {
-  background: #fff;
+  background: $bg-card;
   text-align: center;
   font-size: 22rpx;
-  color: #bbbfc4;
+  color: $text-placeholder;
   padding: 12rpx 0 calc(12rpx + env(safe-area-inset-bottom));
 }
 </style>
