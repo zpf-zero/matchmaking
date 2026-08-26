@@ -4,7 +4,7 @@
 
 ## 0. 一句话
 
-Windows 上 `deploy\build.ps1` 一条命令产出 zip → 传到 Ubuntu → `sudo bash deploy.sh`。
+Windows 上 `deploy\build.ps1` 一条命令产出 zip → 传到 Ubuntu → root 执行 `bash deploy.sh`。
 前端是 **H5**（不是小程序），后端是**交叉编译的 linux/amd64 二进制 + nohup 后台进程**（不是 systemd，不是 Docker）。
 
 ## 1. 环境事实
@@ -22,8 +22,8 @@ Windows 上 `deploy\build.ps1` 一条命令产出 zip → 传到 Ubuntu → `sud
 
 | 改动 | 动作 |
 |---|---|
-| 前端 `miniapp/src/**` | 重跑 `build.ps1`，传包，`sudo bash deploy.sh`（或只覆盖 `web/` 后 `reload nginx`） |
-| 后端 `server/**` | 重跑 `build.ps1`，传包，`sudo bash deploy.sh`（必须先 `stop.sh`，否则覆盖二进制报 `Text file busy`） |
+| 前端 `miniapp/src/**` | 重跑 `build.ps1`，传包，root 执行 `bash deploy.sh` |
+| 后端 `server/**` | 重跑 `build.ps1`，传包，root 执行 `bash deploy.sh`（脚本会先停旧进程） |
 | `deploy/template/**` | 重跑 `build.ps1`（模板是打包时才复制进产物的） |
 | `*.prod.yaml` 里的地址/域名 | 改完重跑 `build.ps1`，nginx `server_name` 和数据库里的头像地址会自动跟着变 |
 | 只往数据库加了用户 | 重跑 `build.ps1` 把新头像打进包，否则线上是空头像 |
@@ -47,15 +47,17 @@ powershell -ExecutionPolicy Bypass -File deploy\build.ps1
 
 ```bash
 scp deploy/matchmaking-ubuntu-amd64.zip ubuntu@81.70.160.36:/tmp/
-ssh ubuntu@81.70.160.36
-sudo mkdir -p /data/matchmaking && cd /data/matchmaking
-sudo unzip -o /tmp/matchmaking-ubuntu-amd64.zip
-sudo bash deploy.sh          # 注意是 bash，不是 ./
+ssh root@81.70.160.36
+mkdir -p /data/matchmaking && cd /data/matchmaking
+unzip -o /tmp/matchmaking-ubuntu-amd64.zip
+bash deploy.sh          # 注意是 bash，不是 ./
 ```
 
 zip 顶层直接就是 `deploy.sh` / `web/` / `server/` / `nginx/` / `sql/`，没有多一层 `ubuntu/`。
 
-`deploy.sh` 幂等，可重复执行；会自己停旧进程、修权限、装 nginx、起后端、跑四项自检。
+`deploy.sh` 幂等，可重复执行；默认全程使用 root。它会先判断 nginx 配置是否与包内模板一致且语法有效，已配置好就跳过复制和 reload；随后停止全部旧 `hunjie-server`、同步文件、设置最小必要权限、启动新进程并跑四项自检。
+
+权限规则：目录 `755`，Web 普通文件和 uploads 文件 `644`，后端二进制与 `.sh` 为 `755`，`config.prod.yaml` 为 `600`。不要把 server 下所有文件都设成 `755`，否则配置文件既带执行位又对其他用户可读，会暴露数据库口令。
 
 进程管理（`/data/matchmaking/server/` 下）：`status.sh` / `start.sh` / `stop.sh` / `restart.sh`。
 
@@ -84,7 +86,7 @@ zip 顶层直接就是 `deploy.sh` / `web/` / `server/` / `nginx/` / `sql/`，�
 | `build.ps1` 存成 UTF-8 **无 BOM** | PS 5.1 按 ANSI 解析，中文打乱引号，一堆语法错 | 文件已带 BOM，**编辑后要确认 BOM 还在** |
 | 用 `Compress-Archive` 打包 | 条目名是反斜杠，Linux 解压出一堆平铺怪文件名 | 自写 `New-UnixZip` 强制 `/`，打完还校验一遍 |
 | shell 脚本 CRLF 或带 BOM | Ubuntu 报 `bad interpreter: ^M` | `Copy-AsUnixText` 统一转 LF 去 BOM |
-| zip 不保留执行位 | `./deploy.sh` 报 Permission denied | 用 `sudo bash deploy.sh`；脚本内部给其余文件补 `+x` |
+| zip 不保留执行位 | `./deploy.sh` 报 Permission denied | root 使用 `bash deploy.sh`；脚本内部给其余文件补 `+x` |
 | 按 key 读 YAML | `port` 命中 `server.port`(8080) 而不是 `mysql.port`(3306) | 用 `Read-YamlSectionValue` 按段落读 |
 | `rsync --delete` 用在 `uploads/` | 删掉服务器上用户上传的图片 | `web/` 才用 `--delete`，`uploads/` 只合并 |
 | 不 `cd` 到 server 目录就启动 | `sensitive.Init("configs/sensitive_words.txt")` 是**相对路径**，词库加载不到（不报错，静默退回内置词库） | `start.sh` 里 `cd "$BASE_DIR"` |

@@ -75,21 +75,23 @@ nginx 侧 `/uploads/` 直接读磁盘（`root /data/matchmaking/server`），文
 scp deploy/matchmaking-ubuntu-amd64.zip ubuntu@<服务器IP>:/tmp/
 ssh ubuntu@<服务器IP>
 
-sudo mkdir -p /data/matchmaking && cd /data/matchmaking
-sudo unzip -o /tmp/matchmaking-ubuntu-amd64.zip
-sudo bash deploy.sh
+mkdir -p /data/matchmaking && cd /data/matchmaking
+unzip -o /tmp/matchmaking-ubuntu-amd64.zip
+bash deploy.sh
 ```
 
 > zip 格式不保留 Unix 执行位，所以第一步用 `bash` 显式调用；`deploy.sh` 会给 `hunjie-server` 和其余 `.sh` 补上 `+x`。
 > 另外 `Compress-Archive` 在 PowerShell 5.1 下写出的条目名是反斜杠，Linux 解压会得到一堆平铺的怪文件名，
 > 所以 `build.ps1` 自己写 zip 条目并强制正斜杠，打完还会校验一遍。
 
-`deploy.sh` 会：建目录 → 停旧进程 → 铺文件 → 装 nginx 站点 → 修权限 → 起后端 → 自检（后端 /health、nginx 转发、前端首页、随便挑一张图片）。可以重复执行。
+`deploy.sh` 会：检查 nginx → 停止全部旧 `hunjie-server` 进程 → 铺文件 → 设置权限 → 以 root 启动新后端 → 自检。可以重复执行。
+
+Nginx 采用“配置一致就跳过”的策略：`sites-enabled/matchmaking.conf` 与部署包模板完全一致、默认站点已移除且 `nginx -t` 通过时，不再复制配置或 reload；模板变化、配置缺失或检查失败时才自动修复。
 
 两个要注意的点：
 
 - **uploads 只合并不删除。** 前端目录是 `rsync --delete` 整体替换（清掉上个版本残留的 assets），但 `uploads/` 单独用不带 `--delete` 的 rsync，服务器上用户上传的图片不会被本地包覆盖掉。
-- **后端不用 root 跑。** 脚本自己需要 root（建 `/data`、装 nginx），但会用 `$SUDO_USER` 把文件属主和后端进程切回你自己的账号。
+- **默认以 root 部署和运行。** 不创建额外系统用户。Web 目录为 `755`、静态文件为 `644`；后端目录为 `755`，仅二进制和 Shell 脚本为 `755`，包含数据库口令的 `config.prod.yaml` 为 `600`。
 
 ## 四、日常运维
 

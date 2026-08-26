@@ -284,11 +284,12 @@ $readme = @"
 站点地址：$BaseUrl
 
 一键部署（在本目录执行）：
-    sudo bash deploy.sh
+    bash deploy.sh
 
 zip 不保留执行位，所以这里用 bash 显式调用；脚本会给其余文件补上 +x。
 
-deploy.sh 会做：建目录 -> 铺文件 -> 装 nginx 站点 -> 修权限 -> 重启后端 -> 自检。
+deploy.sh 会做：检查 nginx -> 停旧后端 -> 铺文件 -> 修权限 -> 以 root 启动新后端 -> 自检。
+nginx 配置与包内模板一致且 nginx -t 通过时，会跳过重复复制与 reload。
 可以重复执行；uploads 只合并不删除，服务器上已有的用户图片不会丢。
 
 目录说明：
@@ -336,9 +337,9 @@ if (-not $NoZip) { Write-Host "    部署包：  $ZipPath" }
 Write-Host @"
 
 下一步：
-    scp "$ZipPath" ubuntu@${ServerName}:/tmp/
-    ssh ubuntu@$ServerName
-    sudo mkdir -p /data/matchmaking && cd /data/matchmaking
-    sudo unzip -o /tmp/matchmaking-ubuntu-amd64.zip
-    sudo bash deploy.sh
+    scp "$ZipPath" root@${ServerName}:/tmp/
+    ssh root@$ServerName
+    mkdir -p /data/matchmaking && cd /data/matchmaking
+    unzip -o /tmp/matchmaking-ubuntu-amd64.zip
+    bash deploy.sh
 "@ -ForegroundColor Green
