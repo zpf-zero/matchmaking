@@ -92,23 +92,35 @@ if [ -n "$OLD_PIDS" ]; then
 fi
 rm -f "$TARGET_ROOT/server/server.pid"
 
-say "同步前端静态文件 -> $TARGET_ROOT/web"
-# 前端整体替换，--delete 清掉上个版本残留的 assets
-rsync -a --delete "$SRC_DIR/web/" "$TARGET_ROOT/web/"
-
-say "同步后端 -> $TARGET_ROOT/server"
-# uploads 单独处理：只增不删，服务器上用户上传的图片不能被本地包覆盖掉
-rsync -a --exclude 'uploads/' --exclude 'logs/' --exclude 'server.pid' \
-      "$SRC_DIR/server/" "$TARGET_ROOT/server/"
-if [ -d "$SRC_DIR/server/uploads" ]; then
-  rsync -a "$SRC_DIR/server/uploads/" "$TARGET_ROOT/server/uploads/"
+# 包直接解压到 TARGET_ROOT 再执行时（文档里的默认做法），源和目标就是同一个目录。
+# 这时同步毫无意义，而且 cp 会因为 "are the same file" 返回非 0，
+# 在 set -e 下会直接中断脚本，导致后面的装 nginx、起后端、自检全都不执行。
+IN_PLACE=0
+if [ "$(readlink -f -- "$SRC_DIR")" = "$(readlink -f -- "$TARGET_ROOT")" ]; then
+  IN_PLACE=1
 fi
 
-say "同步部署附属文件"
-if [ "$NGINX_READY" = "0" ]; then
-  cp -f "$SRC_DIR/nginx/$SITE_NAME" "$TARGET_ROOT/nginx/$SITE_NAME"
+if [ "$IN_PLACE" = "1" ]; then
+  say "包目录即目标目录（就地部署），跳过文件同步"
+else
+  say "同步前端静态文件 -> $TARGET_ROOT/web"
+  # 前端整体替换，--delete 清掉上个版本残留的 assets
+  rsync -a --delete "$SRC_DIR/web/" "$TARGET_ROOT/web/"
+
+  say "同步后端 -> $TARGET_ROOT/server"
+  # uploads 单独处理：只增不删，服务器上用户上传的图片不能被本地包覆盖掉
+  rsync -a --exclude 'uploads/' --exclude 'logs/' --exclude 'server.pid' \
+        "$SRC_DIR/server/" "$TARGET_ROOT/server/"
+  if [ -d "$SRC_DIR/server/uploads" ]; then
+    rsync -a "$SRC_DIR/server/uploads/" "$TARGET_ROOT/server/uploads/"
+  fi
+
+  say "同步部署附属文件"
+  if [ "$NGINX_READY" = "0" ]; then
+    cp -f "$SRC_DIR/nginx/$SITE_NAME" "$TARGET_ROOT/nginx/$SITE_NAME"
+  fi
+  [ -d "$SRC_DIR/sql" ] && rsync -a "$SRC_DIR/sql/" "$TARGET_ROOT/sql/" || true
 fi
-[ -d "$SRC_DIR/sql" ] && rsync -a "$SRC_DIR/sql/" "$TARGET_ROOT/sql/" || true
 
 say "设置 root 所有权与最小必要权限"
 chown -R root:root "$TARGET_ROOT"
