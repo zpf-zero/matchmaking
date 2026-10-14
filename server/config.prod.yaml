@@ -1,5 +1,6 @@
 server:
-  port: 8080
+  # 8080 在部署机上被 Docker 容器占用，后端改用 8066（nginx 同步转发到 8066）
+  port: 8066
   mode: release
 
 mysql:

@@ -11,7 +11,7 @@ Windows 上 `deploy\build.ps1` 一条命令产出 zip → 传到 Ubuntu → root
 
 | 项 | 值 |
 |---|---|
-| 生产服务器 | `81.70.160.36`，前端 `/data/matchmaking/web`，后端 `/data/matchmaking/server` |
+| 生产服务器 | `81.70.160.36`，前端 `/data/matchmaking/web`，后端 `/data/matchmaking/server`，后端端口 `8066`（8080 被同机 Docker 容器占用） |
 | 数据库 | `101.35.245.54:3306/marry_link_dev`，**MySQL 5.6.50**，账号密码在 `server/config.prod.yaml` |
 | 数据库共用 | 本地开发和线上是**同一个库**，改数据两边同时生效 |
 | 本地 dev | 前端 vite `:5173`，后端 `:8080` |
@@ -87,7 +87,7 @@ zip 顶层直接就是 `deploy.sh` / `web/` / `server/` / `nginx/` / `sql/`，�
 | 用 `Compress-Archive` 打包 | 条目名是反斜杠，Linux 解压出一堆平铺怪文件名 | 自写 `New-UnixZip` 强制 `/`，打完还校验一遍 |
 | shell 脚本 CRLF 或带 BOM | Ubuntu 报 `bad interpreter: ^M` | `Copy-AsUnixText` 统一转 LF 去 BOM |
 | zip 不保留执行位 | `./deploy.sh` 报 Permission denied | root 使用 `bash deploy.sh`；脚本内部给其余文件补 `+x` |
-| 按 key 读 YAML | `port` 命中 `server.port`(8080) 而不是 `mysql.port`(3306) | 用 `Read-YamlSectionValue` 按段落读 |
+| 按 key 读 YAML | `port` 命中 `server.port`(8066) 而不是 `mysql.port`(3306) | 用 `Read-YamlSectionValue` 按段落读 |
 | `rsync --delete` 用在 `uploads/` | 删掉服务器上用户上传的图片 | `web/` 才用 `--delete`，`uploads/` 只合并 |
 | 不 `cd` 到 server 目录就启动 | `sensitive.Init("configs/sensitive_words.txt")` 是**相对路径**，词库加载不到（不报错，静默退回内置词库） | `start.sh` 里 `cd "$BASE_DIR"` |
 | 构建完忘了还原前端配置 | 本地 `npm run dev:h5` 打到生产地址 | `build.ps1` 末尾自动 `npm run config:dev` |
@@ -105,7 +105,7 @@ zip 顶层直接就是 `deploy.sh` / `web/` / `server/` / `nginx/` / `sql/`，�
 服务器侧（`deploy.sh` 已自动跑这四项）：
 
 ```bash
-curl http://127.0.0.1:8080/health        # 后端本身
+curl http://127.0.0.1:8066/health        # 后端本身
 curl http://81.70.160.36/health          # 经 nginx
 curl -o /dev/null http://81.70.160.36/   # 前端首页
 curl -o /dev/null http://81.70.160.36/uploads/avatar/seed/seed_m01.png   # 头像

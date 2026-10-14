@@ -309,7 +309,7 @@ nginx 配置与包内模板一致且 nginx -t 通过时，会跳过重复复制�
 
 前置条件：
     外部 MySQL 的白名单必须放行这台服务器的公网 IP，否则后端起不来。
-    安全组开放 22 和 80 即可，8080 不用对公网开放。
+    安全组开放 22 和 80 即可，8066 不用对公网开放。
 "@
 [System.IO.File]::WriteAllText((Join-Path $OutDir 'README.txt'), ($readme -replace "`r`n", "`n"),
   (New-Object System.Text.UTF8Encoding($false)))

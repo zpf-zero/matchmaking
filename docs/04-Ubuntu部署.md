@@ -65,7 +65,7 @@ http://81.70.160.36
 
 ## 三、前置条件
 
-- 云安全组开放 `22` 和 `80`。`8080` 不用对公网开放，nginx 从 `127.0.0.1:8080` 转发。
+- 云安全组开放 `22` 和 `80`。`8066` 不用对公网开放，nginx 从 `127.0.0.1:8066` 转发。
 - **外部 MySQL 白名单要放行 `81.70.160.36`**，否则后端连不上库，`/health` 不通。
 - 服务器需要 `nginx`、`curl`、`rsync`，`deploy.sh` 检测到缺失会自动 `apt install`。
 
@@ -105,10 +105,10 @@ sudo cp /tmp/新包/server/hunjie-server .
 ```bash
 # 后端进程和端口
 ps -ef | grep hunjie-server
-sudo ss -lntp | grep -E ':(80|8080)'
+sudo ss -lntp | grep -E ':(80|8066)'
 
 # 后端本身
-curl http://127.0.0.1:8080/health
+curl http://127.0.0.1:8066/health
 
 # 经过 nginx
 curl http://81.70.160.36/health

@@ -8,7 +8,7 @@ PID_FILE="$BASE_DIR/server.pid"
 LOG_FILE="$BASE_DIR/logs/server.log"
 
 PORT="$(grep -E '^\s+port:' "$CONF" 2>/dev/null | head -n1 | tr -dc '0-9')"
-PORT="${PORT:-8080}"
+PORT="${PORT:-8066}"
 
 echo "== 进程 =="
 if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then

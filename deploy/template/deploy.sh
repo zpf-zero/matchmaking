@@ -141,8 +141,8 @@ bash "$TARGET_ROOT/server/start.sh"
 
 say "自检"
 FAILED=0
-if curl -fsS http://127.0.0.1:8080/health >/dev/null; then
-  echo "  [OK] 后端 127.0.0.1:8080/health"
+if curl -fsS http://127.0.0.1:8066/health >/dev/null; then
+  echo "  [OK] 后端 127.0.0.1:8066/health"
 else
   echo "  [FAIL] 后端 /health 不通，看 $TARGET_ROOT/server/logs/server.log"
   FAILED=1

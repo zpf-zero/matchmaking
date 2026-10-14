@@ -106,11 +106,11 @@ cd /data/matchmaking/server
 tail -f logs/server.log
 ```
 
-`start.sh` 除了 PID 文件还会查一遍进程表，PID 文件被误删也不会启出第二个实例来抢 8080。
+`start.sh` 除了 PID 文件还会查一遍进程表，PID 文件被误删也不会启出第二个实例来抢 8066。
 
 ## 五、前置条件与注意事项
 
-- 云安全组开放 **22** 和 **80**；8080 不用对公网开放，nginx 从 `127.0.0.1:8080` 转发。
+- 云安全组开放 **22** 和 **80**；8066 不用对公网开放，nginx 从 `127.0.0.1:8066` 转发。
 - **外部 MySQL 的白名单必须放行服务器公网 IP**，否则后端起不来。日志里会是连接超时。
 - `server/config.prod.yaml` 里有数据库明文口令，包和仓库都不要外发。
 - `jwt.secret` 目前还是 `hunjie-dev-secret-please-change-in-production`。换掉更安全，但换了之后所有已登录用户的 token 会失效，需要重新登录。

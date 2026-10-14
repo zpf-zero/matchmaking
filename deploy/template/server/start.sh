@@ -16,7 +16,7 @@ LOG_FILE="$BASE_DIR/logs/server.log"
 mkdir -p "$BASE_DIR/logs" "$BASE_DIR/uploads" "$BASE_DIR/configs"
 
 # 已经在跑就不重复拉起。除了 PID 文件，也查一遍进程表，
-# 防止 PID 文件被误删之后启出第二个实例来抢 8080 端口
+# 防止 PID 文件被误删之后启出第二个实例来抢 8066 端口
 if [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
   echo "服务已在运行，PID=$(cat "$PID_FILE")"
   exit 0
@@ -45,7 +45,7 @@ if ! kill -0 "$PID" 2>/dev/null; then
 fi
 
 PORT="$(grep -E '^\s+port:' "$CONF" | head -n1 | tr -dc '0-9')"
-PORT="${PORT:-8080}"
+PORT="${PORT:-8066}"
 for _ in $(seq 1 10); do
   if curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; then
     echo "服务已启动，PID=$PID，健康检查通过（:${PORT}）"
