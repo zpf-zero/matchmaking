@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { onShow, onReachBottom } from '@dcloudio/uni-app'
 import { adminApi } from '@/api'
+import { parseTime } from '@/utils/time'
 import { Role, useUserStore } from '@/stores/user'
 
 const store = useUserStore()
@@ -44,6 +45,33 @@ async function load(reset: boolean) {
 function switchFilter(s: number) {
   filterStatus.value = s
   load(true)
+}
+
+/** 举报时间，处理队列里“多久之前”比原始时间戳更有用 */
+function fmtTime(t?: string) {
+  const ts = parseTime(t)
+  if (Number.isNaN(ts)) return ''
+  const diff = Date.now() - ts
+  if (diff < 3600_000) return `${Math.max(1, Math.floor(diff / 60000))} 分钟前`
+  if (diff < 86400_000) return `${Math.floor(diff / 3600_000)} 小时前`
+  if (diff < 86400_000 * 7) return `${Math.floor(diff / 86400_000)} 天前`
+  const d = new Date(ts)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+/** 举报附带的证据图，后端存成逗号分隔的字符串 */
+function evidence(item: any): string[] {
+  return String(item?.report?.images || '')
+    .split(',')
+    .map((s: string) => s.trim())
+    .filter(Boolean)
+}
+
+function previewEvidence(item: any, index: number) {
+  const urls = evidence(item)
+  if (!urls.length) return
+  uni.previewImage({ urls, current: index })
 }
 
 function handle(item: any) {
@@ -104,12 +132,29 @@ function goUser(id: number) {
         <text class="k">举报人</text>
         <text class="v">{{ item.from_nickname }}（#{{ item.report.from_user_id }}）</text>
       </view>
-      <view class="line" @click="goUser(item.report.target_user_id)">
+      <view class="line tap" @click="goUser(item.report.target_user_id)">
         <text class="k">被举报</text>
-        <text class="v link">{{ item.target_nickname }}（#{{ item.report.target_user_id }}）›</text>
+        <text class="v link">{{ item.target_nickname }}（#{{ item.report.target_user_id }}）</text>
+        <view class="arrow"></view>
+      </view>
+      <view v-if="item.report.created_at" class="line">
+        <text class="k">举报于</text>
+        <text class="v weak">{{ fmtTime(item.report.created_at) }}</text>
       </view>
 
       <view v-if="item.report.description" class="desc">{{ item.report.description }}</view>
+
+      <view v-if="evidence(item).length" class="shots">
+        <image
+          v-for="(url, i) in evidence(item)"
+          :key="url"
+          :src="url"
+          class="shot"
+          mode="aspectFill"
+          @click="previewEvidence(item, i)"
+        />
+      </view>
+
       <view v-if="item.report.handle_remark" class="remark">
         处理备注：{{ item.report.handle_remark }}
       </view>
@@ -141,12 +186,14 @@ function goUser(id: number) {
   border: 1rpx solid $border;
   background: $bg-card;
   color: $text-sub;
-  font-size: 26rpx;
+  font-size: $font-mid;
+  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
 
   &.on {
     background: $brand;
     border-color: $brand;
     color: $text-on-accent;
+    font-weight: 600;
   }
 }
 
@@ -162,18 +209,19 @@ function goUser(id: number) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20rpx;
+  margin-bottom: 16rpx;
 }
 
 .reason {
-  font-size: 30rpx;
+  font-size: $font-lead;
   font-weight: 600;
+  color: $text-main;
 }
 
 .status {
-  font-size: 22rpx;
+  font-size: $font-micro;
   padding: 4rpx 14rpx;
-  border-radius: 6rpx;
+  border-radius: $radius-sm;
 
   &.s0 {
     background: $warning-light;
@@ -193,16 +241,34 @@ function goUser(id: number) {
 
 .line {
   display: flex;
-  font-size: 26rpx;
+  align-items: center;
+  font-size: $font-mid;
   padding: 8rpx 0;
+
+  &.tap {
+    margin: 0 -12rpx;
+    padding: 8rpx 12rpx;
+    border-radius: $radius-sm;
+    transition: background-color 180ms ease;
+
+    &:active {
+      background: $bg-subtle;
+    }
+  }
 
   .k {
     color: $text-weak;
     width: 110rpx;
+    flex-shrink: 0;
   }
 
   .v {
     flex: 1;
+    color: $text-main;
+
+    &.weak {
+      color: $text-weak;
+    }
   }
 
   .link {
@@ -210,20 +276,46 @@ function goUser(id: number) {
   }
 }
 
+.arrow {
+  width: 11rpx;
+  height: 11rpx;
+  flex-shrink: 0;
+  margin-left: 12rpx;
+  border-right: 2rpx solid $brand;
+  border-bottom: 2rpx solid $brand;
+  transform: rotate(-45deg);
+  opacity: 0.7;
+}
+
 .desc {
   margin-top: 14rpx;
-  padding: 18rpx;
+  padding: 20rpx;
   background: $bg-subtle;
-  border-radius: 10rpx;
-  font-size: 25rpx;
+  border-radius: $radius;
+  font-size: $font-mid;
   color: $text-sub;
-  line-height: 1.6;
+  line-height: 1.7;
+}
+
+.shots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+
+.shot {
+  width: 150rpx;
+  height: 150rpx;
+  border-radius: $radius-sm;
+  background: $bg-subtle;
 }
 
 .remark {
-  margin-top: 14rpx;
-  font-size: 24rpx;
+  margin-top: 16rpx;
+  font-size: $font-caption;
   color: $text-weak;
+  line-height: 1.6;
 }
 
 .actions {
@@ -231,19 +323,26 @@ function goUser(id: number) {
 }
 
 .btn {
-  height: 76rpx;
-  line-height: 76rpx;
+  height: 80rpx;
+  line-height: 80rpx;
   text-align: center;
-  border-radius: 12rpx;
+  border-radius: $radius;
   background: $brand;
   color: $text-on-accent;
-  font-size: 28rpx;
+  font-size: $font-body;
+  font-weight: 600;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), background-color 180ms ease;
+
+  &:active {
+    transform: scale(0.98);
+    background: $brand-dark;
+  }
 }
 
 .end {
   text-align: center;
   color: $text-placeholder;
-  font-size: 24rpx;
+  font-size: $font-caption;
   padding: 30rpx 0;
 }
 </style>

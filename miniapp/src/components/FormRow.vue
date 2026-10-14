@@ -35,7 +35,7 @@ defineProps<{
 .label {
   width: 180rpx;
   flex-shrink: 0;
-  font-size: 26rpx;
+  font-size: $font-mid;
   font-weight: 550;
   color: $text-main;
 
@@ -47,7 +47,7 @@ defineProps<{
 
 .content {
   flex: 1;
-  font-size: 27rpx;
+  font-size: $font-body;
   color: $text-main;
   overflow: hidden;
 

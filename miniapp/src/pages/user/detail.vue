@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import UserAvatar from '@/components/UserAvatar.vue'
 import { commonApi, interactionApi, userApi } from '@/api'
 import type { UserDetail } from '@/api/types'
 import { useUserStore } from '@/stores/user'
@@ -132,7 +133,9 @@ function doBlock() {
   <view v-if="detail" class="page">
     <!-- 头图 -->
     <view class="hero">
-      <image :src="detail.avatar" class="hero-img" mode="aspectFill" @click="previewPhoto(0)" />
+      <view class="hero-media" @click="previewPhoto(0)">
+        <UserAvatar :src="detail.avatar" :name="detail.nickname" fill radius="none" />
+      </view>
       <view class="hero-info">
         <view class="hero-heading">
           <view class="hero-name">{{ detail.nickname }}</view>
@@ -300,10 +303,10 @@ function doBlock() {
   border-bottom: 1rpx solid $border;
 }
 
-.hero-img {
+.hero-media {
   width: 100%;
   height: 600rpx;
-  background: $bg-subtle;
+  overflow: hidden;
 }
 
 .hero-info {
@@ -319,7 +322,7 @@ function doBlock() {
 }
 
 .hero-name {
-  font-size: 40rpx;
+  font-size: $font-title;
   font-weight: 600;
   color: $text-main;
   letter-spacing: -1rpx;
@@ -329,7 +332,7 @@ function doBlock() {
   display: flex;
   align-items: center;
   gap: 0;
-  font-size: 26rpx;
+  font-size: $font-mid;
   color: $text-weak;
   font-variant-numeric: tabular-nums;
 }
@@ -349,16 +352,17 @@ function doBlock() {
   line-height: 56rpx;
   padding: 0 16rpx;
   text-align: center;
-  border-radius: $radius-sm;
-  background: rgba(37, 35, 33, 0.7);
+  border-radius: $radius;
+  border: 1rpx solid rgba(255, 255, 255, 0.22);
+  background: rgba(37, 35, 33, 0.62);
   color: #fffaf8;
-  font-size: 23rpx;
+  font-size: $font-caption;
   backdrop-filter: blur(8rpx);
 }
 
 .match-badge {
   color: $brand;
-  font-size: 24rpx;
+  font-size: $font-caption;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -371,7 +375,7 @@ function doBlock() {
   color: $brand;
   border-left: 4rpx solid $brand;
   border-radius: $radius-sm;
-  font-size: 26rpx;
+  font-size: $font-mid;
 }
 
 .card {
@@ -383,7 +387,7 @@ function doBlock() {
 }
 
 .card-title {
-  font-size: 30rpx;
+  font-size: $font-section;
   font-weight: 600;
   color: $text-main;
   margin-bottom: 22rpx;
@@ -398,7 +402,7 @@ function doBlock() {
   width: 50%;
   display: flex;
   padding: 14rpx 0;
-  font-size: 26rpx;
+  font-size: $font-mid;
 
   .k {
     color: $text-weak;
@@ -416,7 +420,7 @@ function doBlock() {
 }
 
 .intro {
-  font-size: 28rpx;
+  font-size: $font-body;
   line-height: 1.8;
   color: $text-sub;
   white-space: pre-wrap;
@@ -437,7 +441,7 @@ function doBlock() {
 
 .safe-tip {
   margin: 24rpx;
-  font-size: 22rpx;
+  font-size: $font-micro;
   color: $text-placeholder;
   line-height: 1.6;
   text-align: center;

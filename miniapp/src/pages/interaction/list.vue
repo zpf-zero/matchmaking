@@ -104,9 +104,9 @@ const emptyText = () =>
   height: 72rpx;
   line-height: 72rpx;
   text-align: center;
-  font-size: 27rpx;
+  font-size: $font-mid;
   color: $text-sub;
-  border-radius: $radius-sm;
+  border-radius: $radius;
   transition: background-color 180ms ease, color 180ms ease;
 
   &.on {
@@ -119,7 +119,7 @@ const emptyText = () =>
 .end {
   text-align: center;
   color: $text-placeholder;
-  font-size: 24rpx;
+  font-size: $font-caption;
   padding: 36rpx 0;
 }
 </style>

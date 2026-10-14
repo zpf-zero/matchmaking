@@ -40,8 +40,10 @@ const sections = computed(() => (type.value === 'privacy' ? privacySections : us
 
 <template>
   <view class="agreement-page">
-    <view class="title">{{ title }}</view>
-    <view class="meta">更新日期：2026年8月7日</view>
+    <view class="doc-head">
+      <view class="title">{{ title }}</view>
+      <view class="meta">更新日期：2026年8月7日</view>
+    </view>
     <view class="draft-tip">当前为开发阶段协议草案，运营主体和联系方式将在正式提审前补充。</view>
     <view v-for="section in sections" :key="section.title" class="section">
       <view class="section-title">{{ section.title }}</view>
@@ -53,48 +55,53 @@ const sections = computed(() => (type.value === 'privacy' ? privacySections : us
 <style lang="scss" scoped>
 .agreement-page {
   min-height: 100dvh;
-  padding: 48rpx 36rpx 80rpx;
+  padding: 48rpx 40rpx 96rpx;
   background: $bg-card;
 }
 
+.doc-head {
+  padding-bottom: 28rpx;
+  border-bottom: 1rpx solid $border;
+}
+
 .title {
-  font-size: 42rpx;
-  font-weight: 600;
+  font-size: $font-title;
+  font-weight: 650;
   color: $text-main;
-  letter-spacing: -1rpx;
+  letter-spacing: -0.5rpx;
 }
 
 .meta {
   margin-top: 12rpx;
-  font-size: 22rpx;
+  font-size: $font-caption;
   color: $text-weak;
   font-variant-numeric: tabular-nums;
 }
 
 .draft-tip {
-  margin: 36rpx 0 44rpx;
+  margin: 28rpx 0 0;
   padding: 22rpx 24rpx;
   border-left: 4rpx solid $warning;
   border-radius: $radius-sm;
   background: $warning-light;
   color: $warning;
-  font-size: 24rpx;
+  font-size: $font-caption;
   line-height: 1.7;
 }
 
 .section {
-  margin-bottom: 44rpx;
+  margin-top: 44rpx;
 }
 
 .section-title {
   margin-bottom: 16rpx;
-  font-size: 30rpx;
+  font-size: $font-lead;
   font-weight: 600;
   color: $text-main;
 }
 
 .section-content {
-  font-size: 27rpx;
+  font-size: $font-body;
   line-height: 1.9;
   color: $text-sub;
   text-align: justify;

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 import type { UserCard } from '@/api/types'
 
 const props = defineProps<{
@@ -11,6 +13,11 @@ const props = defineProps<{
 const emit = defineEmits<{
   like: [user: UserCard]
 }>()
+
+/** 婚姻状况与职业合成一行，空值不留分隔符 */
+const metaText = computed(() =>
+  [props.user.marital_text, props.user.occupation].filter(Boolean).join(' · ')
+)
 
 function goDetail() {
   uni.navigateTo({ url: `/pages/user/detail?id=${props.user.id}` })
@@ -26,18 +33,20 @@ function goDetail() {
     @click="goDetail"
     @keyup.enter="goDetail"
   >
-    <image :src="user.avatar" class="avatar" mode="aspectFill" lazy-load />
+    <UserAvatar :src="user.avatar" :name="user.nickname" :size="224" />
 
     <view class="info">
-      <view class="name-row">
+      <view class="head">
         <text class="name">{{ user.nickname }}</text>
         <text v-if="user.match_rate > 0" class="match">{{ user.match_rate }}% 匹配</text>
       </view>
 
       <view class="facts">
-        <text>{{ user.age }} 岁</text>
-        <text class="fact-divider"></text>
-        <text>{{ user.height }} cm</text>
+        <text class="fact">{{ user.age }} 岁</text>
+        <text class="fact-sep"></text>
+        <text class="fact">{{ user.height }} cm</text>
+        <text class="fact-sep"></text>
+        <text class="fact">{{ user.city }}</text>
       </view>
 
       <view class="tags">
@@ -45,26 +54,23 @@ function goDetail() {
         <text class="tag tag-brand">{{ user.income_text }}</text>
       </view>
 
-      <view class="meta">
-        <text class="meta-item">{{ user.city }}</text>
-        <text class="meta-item">{{ user.marital_text }}</text>
-        <text v-if="user.occupation" class="meta-item">{{ user.occupation }}</text>
+      <view class="meta">{{ metaText }}</view>
+
+      <view class="foot">
+        <text class="active">{{ user.active_text }}</text>
+        <view
+          v-if="showLike"
+          class="like"
+          :class="{ on: liked }"
+          role="button"
+          tabindex="0"
+          :aria-label="liked ? '已喜欢' : '喜欢'"
+          @click.stop="emit('like', user)"
+          @keyup.enter.stop="emit('like', user)"
+        >
+          {{ liked ? '已喜欢' : '喜欢' }}
+        </view>
       </view>
-
-      <view class="active" :class="{ 'with-like': showLike }">{{ user.active_text }}</view>
-    </view>
-
-    <view
-      v-if="showLike"
-      class="like"
-      :class="{ on: liked }"
-      role="button"
-      tabindex="0"
-      :aria-label="liked ? '已喜欢' : '喜欢'"
-      @click.stop="emit('like', user)"
-      @keyup.enter.stop="emit('like', user)"
-    >
-      {{ liked ? '已喜欢' : '喜欢' }}
     </view>
   </view>
 </template>
@@ -78,9 +84,7 @@ function goDetail() {
   border: 1rpx solid $border;
   border-radius: $radius-lg;
   padding: 18rpx;
-  margin-bottom: 26rpx;
-  position: relative;
-  overflow: hidden;
+  margin-bottom: 24rpx;
   box-shadow: $shadow-card;
   transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
     border-color 220ms ease, box-shadow 220ms ease;
@@ -92,47 +96,41 @@ function goDetail() {
   }
 }
 
-.avatar {
-  width: 224rpx;
-  height: 288rpx;
-  border-radius: $radius;
-  background: $bg-subtle;
-}
-
 .info {
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
 
-.name-row {
+.head {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 12rpx;
-  margin: 6rpx 0 10rpx;
+  margin: 8rpx 0 12rpx;
 }
 
 .name {
-  font-size: 35rpx;
+  min-width: 0;
+  font-size: $font-title;
   font-weight: 650;
   color: $text-main;
-  letter-spacing: -0.5rpx;
-  max-width: 180rpx;
+  letter-spacing: -0.6rpx;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .match {
-  font-size: 22rpx;
-  color: $brand;
-  font-weight: 600;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  padding: 5rpx 9rpx;
+  flex-shrink: 0;
+  padding: 4rpx 10rpx;
   border-radius: $radius-sm;
   background: $brand-light;
+  color: $brand;
+  font-size: $font-micro;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .facts {
@@ -140,14 +138,21 @@ function goDetail() {
   align-items: center;
   gap: 12rpx;
   color: $text-sub;
-  font-size: 25rpx;
+  font-size: $font-mid;
   font-variant-numeric: tabular-nums;
   margin-bottom: 14rpx;
 }
 
-.fact-divider {
+.fact {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fact-sep {
   width: 1rpx;
   height: 20rpx;
+  flex-shrink: 0;
   background: $border-strong;
 }
 
@@ -155,13 +160,13 @@ function goDetail() {
   display: flex;
   flex-wrap: wrap;
   gap: 10rpx;
-  margin-bottom: 15rpx;
+  margin-bottom: 14rpx;
 }
 
 .tag {
   padding: 5rpx 12rpx;
   border-radius: $radius-sm;
-  font-size: 22rpx;
+  font-size: $font-micro;
   background: $bg-subtle;
   color: $text-sub;
 }
@@ -172,53 +177,52 @@ function goDetail() {
 }
 
 .meta {
-  font-size: 24rpx;
+  font-size: $font-caption;
   color: $text-sub;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.meta-item + .meta-item::before {
-  content: '/';
-  margin: 0 10rpx;
-  color: $text-placeholder;
+.foot {
+  margin-top: auto;
+  padding-top: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
 }
 
 .active {
-  margin-top: auto;
-  font-size: 22rpx;
+  min-width: 0;
+  font-size: $font-micro;
   color: $text-placeholder;
-}
-
-.active.with-like {
-  padding-right: 72rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .like {
-  position: absolute;
-  right: 20rpx;
-  bottom: 20rpx;
-  min-width: 92rpx;
-  height: 62rpx;
+  flex-shrink: 0;
+  min-width: 132rpx;
+  height: 64rpx;
   line-height: 62rpx;
-  padding: 0 18rpx;
+  padding: 0 22rpx;
   text-align: center;
-  border-radius: $radius-sm;
+  border-radius: $radius;
   border: 1rpx solid $brand;
   background: $brand;
   color: $text-on-accent;
-  font-size: 23rpx;
+  font-size: $font-caption;
   font-weight: 600;
   transition: transform 160ms ease, background-color 160ms ease, color 160ms ease;
 
   &:active {
-    transform: scale(0.92);
+    transform: scale(0.94);
   }
 
   &.on {
     background: $brand-light;
-    border-color: $brand;
     color: $brand;
   }
 }

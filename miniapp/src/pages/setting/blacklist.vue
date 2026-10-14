@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import UserAvatar from '@/components/UserAvatar.vue'
 import { commonApi } from '@/api'
 
 const list = ref<{ user_id: number; nickname: string; avatar: string }[]>([])
@@ -40,7 +41,7 @@ function remove(userId: number, nickname: string) {
   <view class="page">
     <view v-if="list.length" class="list">
       <view v-for="b in list" :key="b.user_id" class="item">
-        <image :src="b.avatar" class="avatar" mode="aspectFill" />
+        <UserAvatar :src="b.avatar" :name="b.nickname" :size="88" />
         <text class="name">{{ b.nickname }}</text>
         <view class="btn" @click="remove(b.user_id, b.nickname)">移出</view>
       </view>
@@ -72,25 +73,18 @@ function remove(userId: number, nickname: string) {
   }
 }
 
-.avatar {
-  width: 88rpx;
-  height: 88rpx;
-  border-radius: $radius;
-  background: $bg-subtle;
-}
-
 .name {
   flex: 1;
   margin-left: 24rpx;
-  font-size: 29rpx;
+  font-size: $font-body;
 }
 
 .btn {
   padding: 10rpx 28rpx;
-  border-radius: $radius-sm;
+  border-radius: $radius;
   border: 1rpx solid $border;
   color: $text-sub;
-  font-size: 25rpx;
+  font-size: $font-mid;
   transition: transform 160ms ease, background-color 160ms ease;
 
   &:active {

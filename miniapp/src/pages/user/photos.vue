@@ -99,7 +99,7 @@ function preview(i: number) {
 }
 
 .tip {
-  font-size: 24rpx;
+  font-size: $font-caption;
   color: $text-weak;
   line-height: 1.6;
   padding: 0 8rpx 24rpx;
@@ -136,7 +136,7 @@ function preview(i: number) {
   text-align: center;
   background: rgba(0, 0, 0, 0.55);
   color: #fffaf8;
-  font-size: 22rpx;
+  font-size: $font-micro;
 }
 
 .del {
@@ -150,7 +150,7 @@ function preview(i: number) {
   background: rgba(0, 0, 0, 0.45);
   color: #fffaf8;
   font-size: 32rpx;
-  border-bottom-left-radius: 12rpx;
+  border-bottom-left-radius: $radius;
 }
 
 .add {
@@ -176,13 +176,13 @@ function preview(i: number) {
 }
 
 .add-text {
-  font-size: 22rpx;
+  font-size: $font-micro;
   color: $text-placeholder;
 }
 
 .count {
   text-align: center;
-  font-size: 24rpx;
+  font-size: $font-caption;
   color: $text-placeholder;
   padding: 36rpx 0;
   font-variant-numeric: tabular-nums;

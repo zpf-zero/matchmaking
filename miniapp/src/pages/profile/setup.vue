@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { onLoad, onUnload } from '@dcloudio/uni-app'
 import FormRow from '@/components/FormRow.vue'
 import RegionPicker from '@/components/RegionPicker.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 import { authApi, userApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { uploadImage } from '@/utils/request'
@@ -326,8 +327,8 @@ function prev() {
 
       <FormRow label="头像" required align-right>
         <view class="avatar-row" @click="chooseAvatar">
-          <image v-if="form.avatar" :src="form.avatar" class="avatar" mode="aspectFill" />
-          <view v-else class="avatar placeholder">＋</view>
+          <UserAvatar v-if="form.avatar" :src="form.avatar" :name="form.nickname" :size="120" />
+          <view v-else class="placeholder">＋</view>
         </view>
       </FormRow>
 
@@ -575,7 +576,7 @@ function prev() {
     border: 1rpx solid $border;
     background: $bg-card;
     color: $text-weak;
-    font-size: 24rpx;
+    font-size: $font-caption;
     flex-shrink: 0;
     font-variant-numeric: tabular-nums;
   }
@@ -598,14 +599,14 @@ function prev() {
 }
 
 .step-title {
-  font-size: 38rpx;
+  font-size: $font-title;
   font-weight: 600;
   color: $text-main;
   letter-spacing: -1rpx;
   padding: 40rpx 4rpx 24rpx;
 
   .step-sub {
-    font-size: 24rpx;
+    font-size: $font-caption;
     color: $text-weak;
     font-weight: normal;
     margin-left: 12rpx;
@@ -622,7 +623,7 @@ function prev() {
 }
 
 .section-title {
-  font-size: 31rpx;
+  font-size: $font-lead;
   font-weight: 600;
   color: $text-main;
   padding: 28rpx 0 10rpx;
@@ -641,20 +642,17 @@ function prev() {
   justify-content: flex-end;
 }
 
-.avatar {
+.placeholder {
   width: 120rpx;
   height: 120rpx;
   border-radius: $radius;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $text-placeholder;
+  font-size: 44rpx;
   background: $bg-subtle;
-
-  &.placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: $text-placeholder;
-    font-size: 48rpx;
-    border: 1rpx dashed $border-strong;
-  }
+  border: 1rpx dashed $border-strong;
 }
 
 .gender-group {
@@ -672,7 +670,7 @@ function prev() {
   border: 1rpx solid $border;
   background: $bg-card;
   color: $text-sub;
-  font-size: 26rpx;
+  font-size: $font-mid;
 
   &.on {
     background: $brand;
@@ -685,7 +683,7 @@ function prev() {
   color: $text-weak;
 
   .lock-tip {
-    font-size: 22rpx;
+    font-size: $font-micro;
     color: $text-placeholder;
   }
 }
@@ -693,7 +691,7 @@ function prev() {
 .intro {
   width: 100%;
   height: 240rpx;
-  font-size: 28rpx;
+  font-size: $font-body;
   line-height: 1.6;
   padding: 18rpx 0;
   color: $text-main;
@@ -701,7 +699,7 @@ function prev() {
 
 .count {
   text-align: right;
-  font-size: 22rpx;
+  font-size: $font-caption;
   color: $text-weak;
 
   &.warn {
@@ -710,7 +708,7 @@ function prev() {
 }
 
 .tip {
-  font-size: 22rpx;
+  font-size: $font-caption;
   color: $text-placeholder;
   padding: 12rpx 0 20rpx;
   line-height: 1.5;
@@ -742,7 +740,8 @@ function prev() {
   border: 1rpx solid $border;
   background: $bg-card;
   color: $text-sub;
-  font-size: 24rpx;
+  font-size: $font-mid;
+  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
 
   &.on {
     background: $brand-light;

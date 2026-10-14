@@ -61,24 +61,29 @@ const view = () => {
 <style lang="scss" scoped>
 .page {
   min-height: 100dvh;
-  padding: 148rpx 48rpx 80rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 80rpx 56rpx calc(80rpx + env(safe-area-inset-bottom));
 }
 
 .icon {
   width: 88rpx;
   height: 88rpx;
   line-height: 88rpx;
-  margin-bottom: 40rpx;
+  margin-bottom: 36rpx;
   border-radius: $radius-lg;
   background: $brand-light;
   color: $brand;
-  font-size: 38rpx;
+  font-size: $font-title;
   font-weight: 600;
   text-align: center;
 }
 
 .title {
-  font-size: 42rpx;
+  font-size: $font-title;
   font-weight: 600;
   color: $text-main;
   letter-spacing: -1rpx;
@@ -86,14 +91,15 @@ const view = () => {
 }
 
 .desc {
-  font-size: 27rpx;
+  font-size: $font-mid;
   color: $text-weak;
   line-height: 1.7;
-  margin-bottom: 64rpx;
-  max-width: 600rpx;
+  margin-bottom: 56rpx;
+  max-width: 560rpx;
 }
 
 .btn-primary {
-  width: 100%;
+  width: 420rpx;
+  max-width: 100%;
 }
 </style>

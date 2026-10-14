@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onShow, onUnload } from '@dcloudio/uni-app'
+import UserAvatar from '@/components/UserAvatar.vue'
 import { chatApi } from '@/api'
 import type { Conversation } from '@/api/types'
 import { useUserStore } from '@/stores/user'
@@ -115,7 +116,7 @@ function timeText(t: string | null) {
     <view v-else-if="list.length" class="conv-list">
       <view v-for="c in list" :key="c.id" class="conv" @click="goChat(c)">
         <view class="avatar-wrap">
-          <image :src="c.peer_avatar" class="avatar" mode="aspectFill" />
+          <UserAvatar :src="c.peer_avatar" :name="c.peer_nickname" :size="96" />
           <view v-if="c.peer_online" class="online"></view>
           <view v-if="c.unread" class="unread">{{ c.unread > 99 ? '99+' : c.unread }}</view>
         </view>
@@ -192,13 +193,13 @@ function timeText(t: string | null) {
 }
 
 .entry-text {
-  font-size: 29rpx;
+  font-size: $font-body;
   color: $text-main;
   font-weight: 650;
 }
 
 .entry-note {
-  font-size: 22rpx;
+  font-size: $font-micro;
   color: $text-weak;
   line-height: 1.55;
 }
@@ -214,12 +215,12 @@ function timeText(t: string | null) {
   border-radius: $radius-sm;
   background: $danger;
   color: $text-on-accent;
-  font-size: 20rpx;
+  font-size: $font-micro;
   text-align: center;
 }
 
 .section-title {
-  font-size: 34rpx;
+  font-size: $font-section;
   font-weight: 650;
   letter-spacing: -0.5rpx;
   padding: 0 4rpx 20rpx;
@@ -254,22 +255,15 @@ function timeText(t: string | null) {
   flex-shrink: 0;
 }
 
-.avatar {
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: $radius;
-  background: $bg-subtle;
-}
-
 .online {
   position: absolute;
   right: 2rpx;
   bottom: 2rpx;
   width: 20rpx;
   height: 20rpx;
-  border-radius: 50%;
+  border-radius: $radius-round;
   background: $success;
-  border: 3rpx solid $bg-card;
+  border: 3rpx solid $bg-raised;
 }
 
 .unread {
@@ -283,7 +277,7 @@ function timeText(t: string | null) {
   border-radius: $radius-sm;
   background: $danger;
   color: $text-on-accent;
-  font-size: 20rpx;
+  font-size: $font-micro;
   text-align: center;
 }
 
@@ -301,19 +295,19 @@ function timeText(t: string | null) {
 }
 
 .conv-name {
-  font-size: 30rpx;
+  font-size: $font-lead;
   font-weight: 600;
   color: $text-main;
 }
 
 .conv-time {
-  font-size: 22rpx;
+  font-size: $font-micro;
   color: $text-placeholder;
   font-variant-numeric: tabular-nums;
 }
 
 .conv-msg {
-  font-size: 26rpx;
+  font-size: $font-mid;
   color: $text-weak;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -340,14 +334,14 @@ function timeText(t: string | null) {
   border-radius: $radius-lg;
   background: $brand-light;
   color: $brand;
-  font-size: 29rpx;
+  font-size: $font-body;
   font-weight: 650;
 }
 
 .empty-title {
   margin-bottom: 10rpx;
   color: $text-main;
-  font-size: 30rpx;
+  font-size: $font-lead;
   font-weight: 600;
 }
 
@@ -355,7 +349,7 @@ function timeText(t: string | null) {
   max-width: 480rpx;
   margin: 0 auto 30rpx;
   color: $text-weak;
-  font-size: 25rpx;
+  font-size: $font-mid;
   line-height: 1.7;
 }
 
@@ -366,10 +360,10 @@ function timeText(t: string | null) {
   line-height: 70rpx;
   padding: 0 24rpx;
   border: 1rpx solid $border-strong;
-  border-radius: $radius-sm;
+  border-radius: $radius;
   background: $bg-raised;
   color: $text-main;
-  font-size: 25rpx;
+  font-size: $font-mid;
   font-weight: 600;
   transition: transform 180ms ease, background-color 180ms ease;
 

@@ -342,7 +342,10 @@ function unmatch() {
         <text class="peer-name">{{ peerName }}</text>
         <text v-if="peerTyping" class="typing">正在输入…</text>
       </view>
-      <text v-if="peerId" class="peer-link">查看资料 ›</text>
+      <view v-if="peerId" class="peer-link">
+        <text>查看资料</text>
+        <view class="chev"></view>
+      </view>
     </view>
 
     <scroll-view
@@ -448,19 +451,31 @@ function unmatch() {
 }
 
 .peer-name {
-  font-size: 28rpx;
+  font-size: $font-body;
   font-weight: 600;
   color: $text-main;
 }
 
 .typing {
-  font-size: 22rpx;
+  font-size: $font-micro;
   color: $success;
 }
 
 .peer-link {
-  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+  font-size: $font-caption;
   color: $text-weak;
+}
+
+.chev {
+  width: 10rpx;
+  height: 10rpx;
+  margin-left: 10rpx;
+  border-right: 2rpx solid $text-placeholder;
+  border-bottom: 2rpx solid $text-placeholder;
+  transform: rotate(-45deg);
+  opacity: 0.7;
 }
 
 .icebreak {
@@ -469,7 +484,7 @@ function unmatch() {
 
 .ib-title {
   text-align: center;
-  font-size: 24rpx;
+  font-size: $font-caption;
   color: $text-weak;
   margin-bottom: 20rpx;
   line-height: 1.6;
@@ -481,7 +496,7 @@ function unmatch() {
   border-radius: $radius;
   padding: 20rpx 24rpx;
   margin-bottom: 14rpx;
-  font-size: 27rpx;
+  font-size: $font-mid;
   color: $text-sub;
   transition: transform 160ms ease, background-color 160ms ease;
 
@@ -493,14 +508,14 @@ function unmatch() {
 
 .time-divider {
   text-align: center;
-  font-size: 21rpx;
+  font-size: $font-micro;
   color: $text-placeholder;
   padding: 14rpx 0;
 }
 
 .sys-msg {
   text-align: center;
-  font-size: 22rpx;
+  font-size: $font-micro;
   color: $text-placeholder;
   padding: 10rpx 0;
   margin-bottom: 16rpx;
@@ -518,7 +533,7 @@ function unmatch() {
 .history-tip,
 .safe-notice {
   text-align: center;
-  font-size: 22rpx;
+  font-size: $font-micro;
   color: $text-placeholder;
   padding: 16rpx 40rpx;
   line-height: 1.6;
@@ -547,9 +562,9 @@ function unmatch() {
   max-width: 76%;
   padding: 20rpx 24rpx;
   border: 1rpx solid $border;
-  border-radius: $radius;
+  border-radius: $radius-lg;
   background: $bg-card;
-  font-size: 29rpx;
+  font-size: $font-body;
   line-height: 1.5;
   color: $text-main;
   word-break: break-all;
@@ -569,7 +584,7 @@ function unmatch() {
 
 .msg-meta {
   margin-top: 8rpx;
-  font-size: 20rpx;
+  font-size: $font-micro;
   color: $text-placeholder;
 }
 
@@ -590,9 +605,9 @@ function unmatch() {
   height: 76rpx;
   background: $bg-subtle;
   border: 1rpx solid transparent;
-  border-radius: $radius-sm;
+  border-radius: $radius;
   padding: 0 22rpx;
-  font-size: 28rpx;
+  font-size: $font-body;
 
   &:focus {
     border-color: $brand;
@@ -611,7 +626,7 @@ function unmatch() {
   line-height: 72rpx;
   text-align: center;
   color: $text-sub;
-  font-size: 22rpx;
+  font-size: $font-micro;
   font-weight: 500;
 }
 
@@ -620,10 +635,10 @@ function unmatch() {
   padding: 0 32rpx;
   height: 76rpx;
   line-height: 76rpx;
-  border-radius: $radius-sm;
+  border-radius: $radius;
   background: $bg-subtle;
   color: $text-placeholder;
-  font-size: 28rpx;
+  font-size: $font-body;
   font-weight: 600;
   transition: transform 160ms ease, background-color 160ms ease;
 
@@ -640,7 +655,7 @@ function unmatch() {
 .more-bar {
   background: $bg-card;
   text-align: center;
-  font-size: 22rpx;
+  font-size: $font-micro;
   color: $text-placeholder;
   padding: 12rpx 0 calc(12rpx + env(safe-area-inset-bottom));
 }

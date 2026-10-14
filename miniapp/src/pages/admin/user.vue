@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onShow, onReachBottom } from '@dcloudio/uni-app'
+import UserAvatar from '@/components/UserAvatar.vue'
 import { adminApi } from '@/api'
 import type { AdminUserItem } from '@/api/types'
 import { useUserStore } from '@/stores/user'
@@ -99,7 +100,7 @@ function goDetail(id: number) {
     <view class="count">共 {{ total }} 人</view>
 
     <view v-for="u in list" :key="u.id" class="item" @click="goDetail(u.id)">
-      <image :src="u.avatar" class="avatar" mode="aspectFill" />
+      <UserAvatar :src="u.avatar" :name="u.nickname" :size="96" />
       <view class="info">
         <view class="name-row">
           <text class="name">{{ u.nickname || '未填写' }}</text>
@@ -138,9 +139,9 @@ function goDetail(id: number) {
   height: 76rpx;
   background: $bg-card;
   border: 1rpx solid $border;
-  border-radius: $radius-sm;
+  border-radius: $radius;
   padding: 0 22rpx;
-  font-size: 27rpx;
+  font-size: $font-body;
 }
 
 .ph {
@@ -151,10 +152,16 @@ function goDetail(id: number) {
   padding: 0 32rpx;
   height: 76rpx;
   line-height: 76rpx;
-  border-radius: $radius-sm;
+  border-radius: $radius;
   background: $brand;
   color: $text-on-accent;
-  font-size: 27rpx;
+  font-size: $font-body;
+  font-weight: 600;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), background-color 180ms ease;
+
+  &:active {
+    transform: scale(0.97);
+  }
 }
 
 .filter {
@@ -170,7 +177,8 @@ function goDetail(id: number) {
   border: 1rpx solid $border;
   background: $bg-card;
   color: $text-sub;
-  font-size: 25rpx;
+  font-size: $font-mid;
+  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
 
   &.on {
     background: $brand;
@@ -180,7 +188,7 @@ function goDetail(id: number) {
 }
 
 .count {
-  font-size: 24rpx;
+  font-size: $font-caption;
   color: $text-weak;
   padding: 4rpx 8rpx 16rpx;
 }
@@ -193,14 +201,6 @@ function goDetail(id: number) {
   border-radius: $radius-lg;
   padding: 24rpx;
   margin-bottom: 16rpx;
-}
-
-.avatar {
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: $radius;
-  background: $bg-subtle;
-  flex-shrink: 0;
 }
 
 .info {
@@ -216,8 +216,8 @@ function goDetail(id: number) {
 }
 
 .name {
-  font-size: 29rpx;
-  font-weight: 500;
+  font-size: $font-lead;
+  font-weight: 600;
   max-width: 240rpx;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -225,30 +225,30 @@ function goDetail(id: number) {
 }
 
 .uid {
-  font-size: 22rpx;
+  font-size: $font-micro;
   color: $text-placeholder;
   margin-left: 12rpx;
 }
 
 .role {
-  font-size: 20rpx;
+  font-size: $font-micro;
   color: $brand;
   background: $brand-light;
   padding: 2rpx 10rpx;
-  border-radius: 6rpx;
+  border-radius: $radius-sm;
   margin-left: 10rpx;
 }
 
 .meta {
-  font-size: 23rpx;
+  font-size: $font-caption;
   color: $text-weak;
   margin-top: 4rpx;
 }
 
 .status {
-  font-size: 22rpx;
+  font-size: $font-micro;
   padding: 6rpx 16rpx;
-  border-radius: 6rpx;
+  border-radius: $radius-sm;
   flex-shrink: 0;
   background: $bg-subtle;
   color: $text-weak;
@@ -273,7 +273,7 @@ function goDetail(id: number) {
 .end {
   text-align: center;
   color: $text-placeholder;
-  font-size: 24rpx;
+  font-size: $font-caption;
   padding: 30rpx 0;
 }
 </style>

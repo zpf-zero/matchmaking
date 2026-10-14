@@ -137,21 +137,23 @@ function openAgreement(type: 'user' | 'privacy') {
   min-height: 100dvh;
   max-width: 960rpx;
   margin: 0 auto;
-  padding: 84rpx 48rpx calc(40rpx + env(safe-area-inset-bottom));
+  padding: 72rpx 48rpx calc(40rpx + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   background: $bg-page;
 }
 
 .header {
-  margin-bottom: 64rpx;
+  /* 与 .form 的 auto 下边距配合，把品牌区+表单整体垂直居中 */
+  margin-top: auto;
+  margin-bottom: 48rpx;
 }
 
 .brand-row {
   display: flex;
   align-items: center;
   gap: 18rpx;
-  margin-bottom: 80rpx;
+  margin-bottom: 56rpx;
 }
 
 .logo {
@@ -163,25 +165,30 @@ function openAgreement(type: 'user' | 'privacy') {
   border: 1rpx solid $brand;
   color: $brand;
   font-family: 'Songti SC', 'STSong', serif;
-  font-size: 32rpx;
+  font-size: $font-lead;
   font-weight: 600;
   text-align: center;
   box-shadow: $shadow-card;
 }
 
 .title {
-  font-size: 29rpx;
+  font-size: $font-body;
   font-weight: 650;
   color: $text-main;
   letter-spacing: 2rpx;
 }
 
+/*
+ * 品牌主张是整站唯一使用衬线的一处：
+ * 宋体在中文里自带「郑重、书面」的语气，与严肃婚恋的定位一致。
+ * 其余界面文字一律无衬线，衬线不作为通用默认。
+ */
 .statement {
   display: flex;
   flex-direction: column;
   color: $text-main;
   font-family: 'Songti SC', 'STSong', 'Noto Serif CJK SC', serif;
-  font-size: 64rpx;
+  font-size: $font-display;
   font-weight: 600;
   letter-spacing: -2.4rpx;
   line-height: 1.2;
@@ -191,13 +198,13 @@ function openAgreement(type: 'user' | 'privacy') {
 
 .slogan {
   max-width: 520rpx;
-  font-size: 26rpx;
+  font-size: $font-mid;
   color: $text-weak;
   line-height: 1.75;
 }
 
 .form {
-  flex: 1;
+  margin-bottom: auto;
 }
 
 .mock-box {
@@ -210,14 +217,14 @@ function openAgreement(type: 'user' | 'privacy') {
 }
 
 .mock-label {
-  font-size: 28rpx;
+  font-size: $font-body;
   color: $text-main;
   font-weight: 600;
   margin-bottom: 6rpx;
 }
 
 .mock-tip {
-  font-size: 23rpx;
+  font-size: $font-caption;
   color: $text-weak;
   line-height: 1.6;
   margin-bottom: 20rpx;
@@ -229,7 +236,7 @@ function openAgreement(type: 'user' | 'privacy') {
   border: 1rpx solid transparent;
   border-radius: $radius;
   padding: 0 22rpx;
-  font-size: 28rpx;
+  font-size: $font-body;
   transition: border-color 180ms ease, background-color 180ms ease;
 
   &:focus {
@@ -248,7 +255,7 @@ function openAgreement(type: 'user' | 'privacy') {
   border-left: 4rpx solid $danger;
   background: $danger-light;
   color: $danger;
-  font-size: 24rpx;
+  font-size: $font-caption;
   line-height: 1.6;
 }
 
@@ -278,13 +285,13 @@ function openAgreement(type: 'user' | 'privacy') {
 
   .tick {
     color: $text-on-accent;
-    font-size: 22rpx;
+    font-size: $font-micro;
   }
 }
 
 .agreement .text {
   flex: 1;
-  font-size: 24rpx;
+  font-size: $font-caption;
   color: $text-weak;
   line-height: 1.6;
 }
@@ -298,7 +305,7 @@ function openAgreement(type: 'user' | 'privacy') {
   align-items: center;
   justify-content: flex-start;
   gap: 16rpx;
-  font-size: 22rpx;
+  font-size: $font-micro;
   color: $text-placeholder;
   padding-top: 48rpx;
 }
@@ -319,6 +326,10 @@ function openAgreement(type: 'user' | 'privacy') {
 @media (max-height: 700px) {
   .login {
     padding-top: 48rpx;
+  }
+
+  .header {
+    margin-top: 0;
   }
 
   .brand-row,

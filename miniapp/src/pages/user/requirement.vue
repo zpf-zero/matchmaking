@@ -174,7 +174,7 @@ async function save() {
 }
 
 .tip {
-  font-size: 24rpx;
+  font-size: $font-caption;
   color: $text-weak;
   line-height: 1.6;
   padding: 0 8rpx 20rpx;
@@ -189,14 +189,14 @@ async function save() {
 }
 
 .label {
-  font-size: 28rpx;
+  font-size: $font-body;
   padding: 24rpx 0 12rpx;
 }
 
 .other {
   width: 100%;
   height: 160rpx;
-  font-size: 27rpx;
+  font-size: $font-mid;
   line-height: 1.6;
   padding-bottom: 20rpx;
 }
@@ -220,7 +220,7 @@ async function save() {
 
 .clear {
   margin-left: 16rpx;
-  font-size: 24rpx;
+  font-size: $font-caption;
   color: $text-placeholder;
 }
 
@@ -236,7 +236,7 @@ async function save() {
   border: 1rpx solid $border;
   background: $bg-subtle;
   color: $text-sub;
-  font-size: 24rpx;
+  font-size: $font-caption;
 
   &.on {
     background: $brand-light;

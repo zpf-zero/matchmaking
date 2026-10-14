@@ -108,7 +108,7 @@ page,
 page {
   background-color: var(--color-canvas);
   color: var(--color-ink);
-  font-size: 28rpx;
+  font-size: $font-body;
   font-family: 'Avenir Next', 'SF Pro Display', 'PingFang SC', 'Microsoft YaHei',
     'Helvetica Neue', sans-serif;
   line-height: 1.5;
@@ -181,7 +181,7 @@ button:focus-visible {
 }
 
 ::-webkit-scrollbar-thumb {
-  border-radius: 8rpx;
+  border-radius: $radius-round;
   background: var(--color-border-strong);
 }
 
@@ -290,11 +290,10 @@ button:focus-visible {
 .card {
   background: var(--color-surface-raised);
   border: 1rpx solid var(--color-border);
-  border-radius: 24rpx;
+  border-radius: $radius-lg;
   padding: 28rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 2rpx 2rpx rgba(78, 43, 55, 0.018),
-    0 14rpx 34rpx var(--color-shadow);
+  box-shadow: $shadow-card;
 }
 
 .row {
@@ -312,13 +311,13 @@ button:focus-visible {
   background: var(--color-accent);
   color: $text-on-accent;
   border: 1rpx solid var(--color-accent);
-  border-radius: 12rpx;
+  border-radius: $radius;
   height: 88rpx;
   line-height: 88rpx;
   text-align: center;
-  font-size: 29rpx;
+  font-size: $font-body;
   font-weight: 650;
-  letter-spacing: 1rpx;
+  letter-spacing: 0.5rpx;
   white-space: nowrap;
   transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
     background-color 180ms ease, opacity 180ms ease;
@@ -340,11 +339,11 @@ button:focus-visible {
   background: var(--color-surface-raised);
   color: var(--color-text-secondary);
   border: 1rpx solid var(--color-border-strong);
-  border-radius: 12rpx;
+  border-radius: $radius;
   height: 88rpx;
   line-height: 88rpx;
   text-align: center;
-  font-size: 29rpx;
+  font-size: $font-body;
   font-weight: 500;
   white-space: nowrap;
   transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
@@ -360,15 +359,15 @@ button:focus-visible {
   padding: 144rpx 48rpx;
   text-align: center;
   color: var(--color-text-muted);
-  font-size: 28rpx;
+  font-size: $font-body;
   line-height: 1.7;
 }
 
 .tag {
   display: inline-block;
   padding: 5rpx 12rpx;
-  border-radius: 8rpx;
-  font-size: 22rpx;
+  border-radius: $radius-sm;
+  font-size: $font-micro;
   background: var(--color-surface-subtle);
   color: var(--color-text-secondary);
   margin-right: 10rpx;

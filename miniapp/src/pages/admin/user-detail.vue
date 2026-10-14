@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import UserAvatar from '@/components/UserAvatar.vue'
 import { adminApi } from '@/api'
 import { Role, useUserStore } from '@/stores/user'
 
@@ -77,12 +78,9 @@ function preview(urls: string[], i: number) {
   <view v-if="data" class="page">
     <view class="card">
       <view class="top">
-        <image
-          :src="data.user.avatar"
-          class="avatar"
-          mode="aspectFill"
-          @click="preview([data.user.avatar], 0)"
-        />
+        <view class="avatar-wrap" @click="preview([data.user.avatar], 0)">
+          <UserAvatar :src="data.user.avatar" :name="data.user.nickname" :size="130" />
+        </view>
         <view class="base">
           <view class="name">
             {{ data.user.nickname || '未填写' }}
@@ -194,11 +192,8 @@ function preview(urls: string[], i: number) {
   display: flex;
 }
 
-.avatar {
-  width: 130rpx;
-  height: 130rpx;
-  border-radius: $radius;
-  background: $bg-subtle;
+.avatar-wrap {
+  flex-shrink: 0;
 }
 
 .base {
@@ -207,29 +202,29 @@ function preview(urls: string[], i: number) {
 }
 
 .name {
-  font-size: 32rpx;
+  font-size: $font-section;
   font-weight: 600;
   margin-bottom: 10rpx;
 }
 
 .uid {
-  font-size: 22rpx;
+  font-size: $font-micro;
   color: $text-placeholder;
   font-weight: normal;
   margin-left: 10rpx;
 }
 
 .sub {
-  font-size: 25rpx;
+  font-size: $font-mid;
   color: $text-weak;
   margin-bottom: 12rpx;
 }
 
 .status {
   display: inline-block;
-  font-size: 22rpx;
+  font-size: $font-micro;
   padding: 4rpx 16rpx;
-  border-radius: 6rpx;
+  border-radius: $radius-sm;
   background: $bg-subtle;
   color: $text-weak;
 
@@ -255,8 +250,9 @@ function preview(urls: string[], i: number) {
   padding: 18rpx;
   background: $danger-light;
   color: $danger;
-  border-radius: 10rpx;
-  font-size: 24rpx;
+  border-radius: $radius;
+  font-size: $font-caption;
+  line-height: 1.6;
 }
 
 .stat {
@@ -267,21 +263,26 @@ function preview(urls: string[], i: number) {
   flex: 1;
   text-align: center;
 
+  & + .s {
+    border-left: 1rpx solid $border;
+  }
+
   .n {
     display: block;
-    font-size: 36rpx;
+    font-size: $font-title;
     font-weight: 600;
+    font-variant-numeric: tabular-nums;
     margin-bottom: 6rpx;
   }
 
   .l {
-    font-size: 22rpx;
+    font-size: $font-micro;
     color: $text-weak;
   }
 }
 
 .ct {
-  font-size: 29rpx;
+  font-size: $font-lead;
   font-weight: 600;
   margin-bottom: 18rpx;
 }
@@ -295,7 +296,7 @@ function preview(urls: string[], i: number) {
   width: 50%;
   display: flex;
   padding: 8rpx 0;
-  font-size: 25rpx;
+  font-size: $font-mid;
 
   .fk {
     color: $text-weak;
@@ -314,8 +315,8 @@ function preview(urls: string[], i: number) {
   margin-top: 16rpx;
   padding: 18rpx;
   background: $bg-subtle;
-  border-radius: 10rpx;
-  font-size: 25rpx;
+  border-radius: $radius;
+  font-size: $font-mid;
   color: $text-sub;
   line-height: 1.7;
 }
@@ -329,7 +330,7 @@ function preview(urls: string[], i: number) {
 .photo {
   width: 150rpx;
   height: 150rpx;
-  border-radius: 8rpx;
+  border-radius: $radius-sm;
   background: $bg-subtle;
 }
 
@@ -338,7 +339,7 @@ function preview(urls: string[], i: number) {
   align-items: center;
   padding: 14rpx 0;
   border-bottom: 1rpx solid $border;
-  font-size: 24rpx;
+  font-size: $font-caption;
 
   &:last-child {
     border-bottom: none;
@@ -372,11 +373,17 @@ function preview(urls: string[], i: number) {
   height: 84rpx;
   line-height: 84rpx;
   text-align: center;
-  border-radius: 12rpx;
+  border-radius: $radius;
   background: $bg-card;
   border: 1rpx solid $border;
   color: $text-sub;
-  font-size: 29rpx;
+  font-size: $font-body;
+  font-weight: 600;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), background-color 180ms ease;
+
+  &:active {
+    transform: scale(0.98);
+  }
 
   &.danger {
     background: $bg-card;
@@ -387,7 +394,7 @@ function preview(urls: string[], i: number) {
 
 .no-perm {
   text-align: center;
-  font-size: 24rpx;
+  font-size: $font-caption;
   color: $text-placeholder;
   padding: 32rpx;
 }

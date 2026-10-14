@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { adminApi } from '@/api'
 import { Role, useUserStore } from '@/stores/user'
@@ -13,6 +13,11 @@ const stat = ref({
   matched: 0,
   active_week: 0,
 })
+
+const roleText = computed(
+  () => ['', '普通用户', '审核员', '管理员', '超级管理员'][store.role] || '未知身份'
+)
+const pendingTotal = computed(() => stat.value.pending_audit + stat.value.pending_report)
 
 onShow(async () => {
   try {
@@ -29,46 +34,65 @@ function go(url: string) {
 
 <template>
   <view class="page">
-    <view class="role-bar">
-      当前身份：{{ ['', '普通用户', '审核员', '管理员', '超级管理员'][store.role] }}
+    <view class="role-row">
+      <text class="role-chip">当前身份 · {{ roleText }}</text>
+      <text v-if="pendingTotal" class="role-alert">{{ pendingTotal }} 项待处理</text>
     </view>
 
-    <view class="stat-grid">
-      <view class="stat-card">
+    <view class="sec-head">
+      <text class="sec-title">待处理</text>
+    </view>
+    <view class="queue">
+      <view
+        class="q-item"
+        :class="{ hot: stat.pending_audit > 0 }"
+        @click="go('/pages/admin/audit')"
+      >
+        <text class="q-num">{{ stat.pending_audit }}</text>
+        <text class="q-lab">资料审核</text>
+        <view class="arrow"></view>
+      </view>
+      <view
+        class="q-item"
+        :class="{ hot: stat.pending_report > 0 }"
+        @click="go('/pages/admin/report')"
+      >
+        <text class="q-num">{{ stat.pending_report }}</text>
+        <text class="q-lab">举报处理</text>
+        <view class="arrow"></view>
+      </view>
+    </view>
+
+    <view class="sec-head">
+      <text class="sec-title">数据概览</text>
+    </view>
+    <view class="panel">
+      <view class="cell">
         <text class="num">{{ stat.total_user }}</text>
         <text class="lab">注册用户</text>
       </view>
-      <view class="stat-card">
+      <view class="cell">
         <text class="num">{{ stat.today_new }}</text>
         <text class="lab">今日新增</text>
       </view>
-      <view class="stat-card">
+      <view class="cell">
         <text class="num">{{ stat.active_week }}</text>
-        <text class="lab">7日活跃</text>
+        <text class="lab">7 日活跃</text>
       </view>
-      <view class="stat-card">
+      <view class="cell">
         <text class="num">{{ stat.matched }}</text>
         <text class="lab">配对总数</text>
       </view>
     </view>
 
+    <view class="sec-head">
+      <text class="sec-title">管理</text>
+    </view>
     <view class="menu">
-      <view class="item" @click="go('/pages/admin/audit')">
-        <text class="label">资料审核</text>
-        <view v-if="stat.pending_audit" class="badge">{{ stat.pending_audit }}</view>
-        <text class="arrow">›</text>
-      </view>
-
-      <view class="item" @click="go('/pages/admin/report')">
-        <text class="label">举报处理</text>
-        <view v-if="stat.pending_report" class="badge">{{ stat.pending_report }}</view>
-        <text class="arrow">›</text>
-      </view>
-
       <view class="item" @click="go('/pages/admin/user')">
         <text class="label">用户管理</text>
         <text v-if="store.role < Role.Admin" class="hint">仅查看</text>
-        <text class="arrow">›</text>
+        <view class="arrow"></view>
       </view>
     </view>
 
@@ -83,38 +107,129 @@ function go(url: string) {
   padding: 28rpx 24rpx 48rpx;
 }
 
-.role-bar {
-  font-size: 24rpx;
-  color: $text-weak;
-  padding: 0 8rpx 20rpx;
+.role-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8rpx;
 }
 
-.stat-grid {
+.role-chip {
+  padding: 8rpx 22rpx;
+  border-radius: $radius-round;
+  background: $bg-subtle;
+  color: $text-sub;
+  font-size: $font-caption;
+}
+
+.role-alert {
+  color: $brand;
+  font-size: $font-caption;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.sec-head {
+  margin: 40rpx 0 18rpx;
+  padding: 0 8rpx;
+}
+
+.sec-title {
+  font-size: $font-mid;
+  font-weight: 650;
+  color: $text-main;
+  letter-spacing: 0.5rpx;
+}
+
+/* 待处理是这一页的主角：数字最大，有积压时整块点亮 */
+.queue {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20rpx;
-  margin-bottom: 24rpx;
 }
 
-.stat-card {
+.q-item {
+  position: relative;
+  padding: 30rpx 26rpx 26rpx;
   background: $bg-card;
   border: 1rpx solid $border;
   border-radius: $radius-lg;
-  padding: 32rpx 24rpx;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), background-color 200ms ease,
+    border-color 200ms ease;
 
-  .num {
-    display: block;
-    font-size: 44rpx;
-    font-weight: 600;
-    color: $text-main;
-    font-variant-numeric: tabular-nums;
-    margin-bottom: 10rpx;
+  &:active {
+    transform: scale(0.98);
   }
 
-  .lab {
-    font-size: 24rpx;
-    color: $text-weak;
+  &.hot {
+    background: $bg-accent;
+    border-color: transparent;
   }
+
+  .arrow {
+    position: absolute;
+    top: 30rpx;
+    right: 24rpx;
+    margin-left: 0;
+  }
+}
+
+.q-num {
+  display: block;
+  font-size: $font-title;
+  font-weight: 650;
+  letter-spacing: -1rpx;
+  color: $text-main;
+  font-variant-numeric: tabular-nums;
+}
+
+.hot .q-num {
+  color: $brand;
+}
+
+.q-lab {
+  display: block;
+  margin-top: 6rpx;
+  font-size: $font-caption;
+  color: $text-weak;
+}
+
+/* 概览数据合并成一块面板，避免四张卡片互相抢注意力 */
+.panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  background: $bg-card;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
+  overflow: hidden;
+}
+
+.cell {
+  padding: 28rpx 26rpx;
+  border-right: 1rpx solid $border;
+  border-bottom: 1rpx solid $border;
+
+  &:nth-child(2n) {
+    border-right: none;
+  }
+
+  &:nth-child(n + 3) {
+    border-bottom: none;
+  }
+}
+
+.num {
+  display: block;
+  font-size: $font-section;
+  font-weight: 600;
+  color: $text-main;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 8rpx;
+}
+
+.lab {
+  font-size: $font-micro;
+  color: $text-weak;
 }
 
 .menu {
@@ -129,51 +244,39 @@ function go(url: string) {
   align-items: center;
   min-height: 104rpx;
   padding: 0 24rpx;
-  border-bottom: 1rpx solid $border;
   transition: background-color 180ms ease;
 
   &:active {
     background: $bg-subtle;
   }
-
-  &:last-child {
-    border-bottom: none;
-  }
 }
 
 .label {
   flex: 1;
-  font-size: 29rpx;
+  font-size: $font-body;
 }
 
 .hint {
-  font-size: 22rpx;
+  font-size: $font-micro;
   color: $text-placeholder;
   margin-right: 10rpx;
 }
 
-.badge {
-  min-width: 36rpx;
-  height: 36rpx;
-  line-height: 36rpx;
-  padding: 0 10rpx;
-  border-radius: $radius-sm;
-  background: $danger;
-  color: $text-on-accent;
-  font-size: 22rpx;
-  text-align: center;
-}
-
 .arrow {
-  color: $text-placeholder;
-  font-size: 36rpx;
-  margin-left: 10rpx;
+  width: 12rpx;
+  height: 12rpx;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  border-right: 2rpx solid $text-placeholder;
+  border-bottom: 2rpx solid $text-placeholder;
+  transform: rotate(-45deg);
+  opacity: 0.6;
 }
 
 .note {
-  font-size: 22rpx;
+  font-size: $font-caption;
   color: $text-placeholder;
-  line-height: 1.6;
-  padding: 32rpx 8rpx;
+  line-height: 1.7;
+  padding: 36rpx 8rpx 0;
 }
 </style>

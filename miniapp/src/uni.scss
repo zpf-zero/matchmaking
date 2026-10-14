@@ -29,10 +29,31 @@ $warning-light: var(--color-warning-soft);
 $danger: var(--color-danger);
 $danger-light: var(--color-danger-soft);
 
-/* 4px 内控件、8px 常规容器、12px 重点容器 */
+/*
+ * 形状锁（全站唯一一套圆角规则，页面不各自发明）：
+ *   $radius-sm 8rpx 标签与角标 / $radius 16rpx 按钮与缩略图
+ *   $radius-lg 24rpx 卡片与面板 / $radius-round 纯圆形
+ */
 $radius-sm: 8rpx;
 $radius: 16rpx;
 $radius-lg: 24rpx;
+$radius-round: 999rpx;
+
+/*
+ * 字号阶梯（全站唯一一套，页面不各自发明）：
+ *   display 品牌主张 > title 页面与姓名 > section 区块标题 > lead 列表主标题
+ *   > body 正文 > mid 次要正文 > caption 说明 > micro 角标
+ */
+$font-display: 64rpx;
+$font-title: 38rpx;
+$font-section: 34rpx;
+$font-lead: 30rpx;
+$font-body: 28rpx;
+$font-mid: 26rpx;
+$font-caption: 23rpx;
+$font-micro: 21rpx;
+
+/* 图标字形（＋ × 等）不属于文字，尺寸按视觉重量单独给定，不并入上面的字号阶梯 */
 
 $gap-xs: 8rpx;
 $gap-sm: 16rpx;

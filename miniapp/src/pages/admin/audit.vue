@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onShow, onReachBottom } from '@dcloudio/uni-app'
+import UserAvatar from '@/components/UserAvatar.vue'
 import { adminApi } from '@/api'
 import type { AuditItem } from '@/api/types'
 import { useUserStore } from '@/stores/user'
@@ -111,7 +112,9 @@ function calcAge(item: AuditItem) {
     <view v-for="item in list" :key="item.user_id" class="card">
       <!-- 基本信息 -->
       <view class="top">
-        <image :src="item.avatar" class="avatar" mode="aspectFill" @click="previewAll(item, 0)" />
+        <view class="avatar-wrap" @click="previewAll(item, 0)">
+          <UserAvatar :src="item.avatar" :name="item.nickname" :size="140" />
+        </view>
         <view class="base">
           <view class="name">
             {{ item.nickname }}
@@ -182,7 +185,8 @@ function calcAge(item: AuditItem) {
 }
 
 .head {
-  font-size: 26rpx;
+  font-size: $font-mid;
+  font-variant-numeric: tabular-nums;
   color: $text-weak;
   padding: 0 8rpx 20rpx;
 }
@@ -200,11 +204,7 @@ function calcAge(item: AuditItem) {
   margin-bottom: 20rpx;
 }
 
-.avatar {
-  width: 140rpx;
-  height: 140rpx;
-  border-radius: $radius;
-  background: $bg-subtle;
+.avatar-wrap {
   flex-shrink: 0;
 }
 
@@ -214,20 +214,20 @@ function calcAge(item: AuditItem) {
 }
 
 .name {
-  font-size: 32rpx;
+  font-size: $font-section;
   font-weight: 600;
   margin-bottom: 12rpx;
 }
 
 .gender {
-  font-size: 22rpx;
+  font-size: $font-micro;
   color: $text-weak;
   font-weight: normal;
   margin-left: 10rpx;
 }
 
 .sub {
-  font-size: 24rpx;
+  font-size: $font-caption;
   color: $text-weak;
   margin-bottom: 6rpx;
 }
@@ -243,7 +243,7 @@ function calcAge(item: AuditItem) {
   width: 50%;
   display: flex;
   padding: 8rpx 0;
-  font-size: 25rpx;
+  font-size: $font-mid;
 
   .fk {
     color: $text-weak;
@@ -260,7 +260,7 @@ function calcAge(item: AuditItem) {
 }
 
 .intro {
-  font-size: 26rpx;
+  font-size: $font-mid;
   color: $text-sub;
   line-height: 1.7;
   background: $bg-subtle;
@@ -279,7 +279,7 @@ function calcAge(item: AuditItem) {
 .photo {
   width: 150rpx;
   height: 150rpx;
-  border-radius: 8rpx;
+  border-radius: $radius-sm;
   background: $bg-subtle;
 }
 
@@ -294,8 +294,14 @@ function calcAge(item: AuditItem) {
   height: 80rpx;
   line-height: 80rpx;
   text-align: center;
-  border-radius: 12rpx;
-  font-size: 28rpx;
+  border-radius: $radius;
+  font-size: $font-body;
+  font-weight: 600;
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), background-color 180ms ease;
+
+  &:active {
+    transform: scale(0.98);
+  }
 
   &.reject {
     background: $bg-card;
@@ -312,7 +318,7 @@ function calcAge(item: AuditItem) {
 .end {
   text-align: center;
   color: $text-placeholder;
-  font-size: 24rpx;
+  font-size: $font-caption;
   padding: 30rpx 0;
 }
 </style>

@@ -72,16 +72,18 @@ function deleteAccount() {
       </view>
       <view class="item" @click="goBlacklist">
         <text class="label">黑名单</text>
-        <text class="arrow">›</text>
+        <view class="arrow"></view>
       </view>
     </view>
 
     <view class="group">
       <view class="item" @click="showAgreement('user')">
-        <text class="label">用户协议</text><text class="arrow">›</text>
+        <text class="label">用户协议</text>
+        <view class="arrow"></view>
       </view>
       <view class="item" @click="showAgreement('privacy')">
-        <text class="label">隐私政策</text><text class="arrow">›</text>
+        <text class="label">隐私政策</text>
+        <view class="arrow"></view>
       </view>
     </view>
 
@@ -137,11 +139,11 @@ function deleteAccount() {
 
 .label {
   flex: 1;
-  font-size: 29rpx;
+  font-size: $font-body;
 }
 
 .label-center {
-  font-size: 29rpx;
+  font-size: $font-body;
   color: $text-sub;
 
   &.danger {
@@ -150,19 +152,24 @@ function deleteAccount() {
 }
 
 .value {
-  font-size: 27rpx;
+  font-size: $font-mid;
   color: $text-weak;
 }
 
 .arrow {
-  color: $text-placeholder;
-  font-size: 36rpx;
-  margin-left: 10rpx;
+  width: 12rpx;
+  height: 12rpx;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  border-right: 2rpx solid $text-placeholder;
+  border-bottom: 2rpx solid $text-placeholder;
+  transform: rotate(-45deg);
+  opacity: 0.6;
 }
 
 .tip {
   text-align: center;
-  font-size: 22rpx;
+  font-size: $font-micro;
   color: $text-placeholder;
   padding: 12rpx 40rpx;
   line-height: 1.6;

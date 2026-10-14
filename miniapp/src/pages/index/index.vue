@@ -161,7 +161,7 @@ function goRequirement() {
   background: $warning-light;
   color: $warning;
   border-left: 4rpx solid $warning;
-  font-size: 24rpx;
+  font-size: $font-caption;
   padding: 18rpx 20rpx;
   border-radius: $radius-sm;
   margin-bottom: 24rpx;
@@ -208,22 +208,22 @@ function goRequirement() {
 
 .filter-title {
   color: $text-main;
-  font-size: 29rpx;
+  font-size: $font-body;
   font-weight: 650;
 }
 
 .filter-text {
-  font-size: 23rpx;
+  font-size: $font-caption;
   color: $text-weak;
 }
 
 .filter-action {
   padding: 10rpx 16rpx;
-  border-radius: $radius-sm;
+  border-radius: $radius;
   background: $bg-raised;
   color: $brand;
   border: 1rpx solid $border;
-  font-size: 23rpx;
+  font-size: $font-caption;
   font-weight: 600;
 }
 
@@ -235,8 +235,8 @@ function goRequirement() {
 
 .skeleton-card {
   display: grid;
-  grid-template-columns: 202rpx 1fr;
-  gap: 26rpx;
+  grid-template-columns: 224rpx 1fr;
+  gap: 24rpx;
   padding: 18rpx;
   border: 1rpx solid $border;
   border-radius: $radius-lg;
@@ -245,8 +245,8 @@ function goRequirement() {
 }
 
 .skeleton-avatar {
-  width: 202rpx;
-  height: 264rpx;
+  width: 224rpx;
+  height: 288rpx;
   border-radius: $radius;
 }
 
@@ -272,7 +272,7 @@ function goRequirement() {
 .end {
   text-align: center;
   color: $text-placeholder;
-  font-size: 24rpx;
+  font-size: $font-caption;
   padding: 36rpx 0 20rpx;
 }
 
@@ -289,19 +289,19 @@ function goRequirement() {
   border-radius: $radius;
   background: $brand-light;
   color: $brand;
-  font-size: 30rpx;
+  font-size: $font-lead;
   font-weight: 600;
 }
 
 .empty-title {
-  font-size: 31rpx;
+  font-size: $font-section;
   font-weight: 600;
   color: $text-main;
   margin-bottom: 12rpx;
 }
 
 .empty-sub {
-  font-size: 26rpx;
+  font-size: $font-mid;
   color: $text-weak;
   line-height: 1.7;
   margin-bottom: 40rpx;
@@ -312,10 +312,10 @@ function goRequirement() {
   padding: 0 36rpx;
   height: 72rpx;
   line-height: 72rpx;
-  border-radius: $radius-sm;
+  border-radius: $radius;
   background: $brand-light;
   color: $brand;
-  font-size: 28rpx;
+  font-size: $font-body;
   font-weight: 500;
 
   &:active {

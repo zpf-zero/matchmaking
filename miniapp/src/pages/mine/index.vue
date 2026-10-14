@@ -1,22 +1,44 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { adminApi } from '@/api'
+import UserAvatar from '@/components/UserAvatar.vue'
+import { adminApi, interactionApi } from '@/api'
 import { Status, useUserStore } from '@/stores/user'
 
 const store = useUserStore()
 const todo = ref(0)
+const myLikes = ref(0)
 
 onShow(async () => {
   if (!store.isLogin) return
   try {
     await store.fetchMe()
     store.fetchUnread()
+
+    const tasks: Promise<unknown>[] = []
+    // 三格数据必须同口径，否则「我喜欢的」会是个空位
+    if (store.canBrowse) {
+      tasks.push(
+        interactionApi
+          .myLikes(1)
+          .then((r) => {
+            myLikes.value = r.total || 0
+          })
+          .catch(() => {})
+      )
+    }
     // 管理员额外拉一下待办数，直接显示在入口上
     if (store.isAdminRole) {
-      const ov = await adminApi.overview()
-      todo.value = ov.pending_audit + ov.pending_report
+      tasks.push(
+        adminApi
+          .overview()
+          .then((ov) => {
+            todo.value = ov.pending_audit + ov.pending_report
+          })
+          .catch(() => {})
+      )
     }
+    await Promise.all(tasks)
   } catch {
     // 已处理
   }
@@ -52,7 +74,12 @@ function go(url: string) {
   <view class="page">
     <!-- 资料卡 -->
     <view class="profile-card" @click="go('/pages/profile/setup?mode=edit')">
-      <image :src="store.user?.avatar" class="avatar" mode="aspectFill" />
+      <UserAvatar
+        :src="store.user?.avatar"
+        :name="store.user?.nickname"
+        :size="136"
+        radius="lg"
+      />
       <view class="info">
         <view class="name-row">
           <text class="name">{{ store.user?.nickname || '未填写' }}</text>
@@ -85,7 +112,7 @@ function go(url: string) {
         <text class="lab">新的喜欢</text>
       </view>
       <view class="stat" @click="go('/pages/interaction/list?tab=1')">
-        <text class="num text-num">查看</text>
+        <text class="num">{{ myLikes }}</text>
         <text class="lab">我喜欢的</text>
       </view>
       <view class="stat" @click="go('/pages/interaction/list?tab=2')">
@@ -165,14 +192,6 @@ function go(url: string) {
   }
 }
 
-.avatar {
-  width: 136rpx;
-  height: 136rpx;
-  border-radius: $radius-lg;
-  background: $bg-subtle;
-  flex-shrink: 0;
-}
-
 .info {
   flex: 1;
   margin-left: 24rpx;
@@ -186,7 +205,7 @@ function go(url: string) {
 }
 
 .name {
-  font-size: 38rpx;
+  font-size: $font-title;
   font-weight: 650;
   color: $text-main;
   letter-spacing: -0.5rpx;
@@ -194,7 +213,7 @@ function go(url: string) {
 
 .role-tag {
   margin-left: 14rpx;
-  font-size: 20rpx;
+  font-size: $font-micro;
   padding: 3rpx 12rpx;
   border-radius: $radius-sm;
   background: $brand-light;
@@ -209,7 +228,7 @@ function go(url: string) {
 }
 
 .status {
-  font-size: 24rpx;
+  font-size: $font-caption;
   font-weight: 500;
 
   &.ok {
@@ -226,7 +245,7 @@ function go(url: string) {
 }
 
 .complete {
-  font-size: 22rpx;
+  font-size: $font-micro;
   color: $text-placeholder;
 }
 
@@ -247,7 +266,7 @@ function go(url: string) {
 .mi-action {
   margin-left: 18rpx;
   color: $brand;
-  font-size: 23rpx;
+  font-size: $font-caption;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -259,13 +278,13 @@ function go(url: string) {
   color: $danger;
   border-left: 4rpx solid $danger;
   border-radius: $radius-sm;
-  font-size: 24rpx;
+  font-size: $font-caption;
   line-height: 1.5;
 }
 
 .stat-grid {
   display: grid;
-  grid-template-columns: 1.15fr 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14rpx;
   margin-top: 24rpx;
 }
@@ -289,19 +308,14 @@ function go(url: string) {
 
   .num {
     display: block;
-    font-size: 38rpx;
+    font-size: $font-title;
     font-weight: 650;
     color: $text-main;
     margin-bottom: 8rpx;
   }
 
-  .text-num {
-    font-size: 25rpx;
-    line-height: 1.7;
-  }
-
   .lab {
-    font-size: 22rpx;
+    font-size: $font-micro;
     color: $text-weak;
   }
 }
@@ -329,7 +343,7 @@ function go(url: string) {
 }
 
 .menu-title {
-  font-size: 24rpx;
+  font-size: $font-caption;
   color: $text-weak;
   padding: 24rpx 24rpx 6rpx;
 }
@@ -352,7 +366,7 @@ function go(url: string) {
 }
 
 .mi-label {
-  font-size: 29rpx;
+  font-size: $font-body;
   font-weight: 520;
   color: $text-main;
 }
@@ -366,12 +380,12 @@ function go(url: string) {
 }
 
 .mi-note {
-  font-size: 22rpx;
+  font-size: $font-micro;
   color: $text-placeholder;
 }
 
 .mi-extra {
-  font-size: 26rpx;
+  font-size: $font-mid;
   color: $text-placeholder;
 }
 
@@ -383,7 +397,7 @@ function go(url: string) {
   border-radius: $radius-sm;
   background: $danger;
   color: $text-on-accent;
-  font-size: 22rpx;
+  font-size: $font-micro;
   text-align: center;
 }
 </style>

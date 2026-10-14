@@ -146,73 +146,110 @@ function labelOr(type: string, value: number, fallback = '不限') {
     </view>
 
     <view v-show="panelOpen" class="card">
-      <view class="filter-group-title">基本条件</view>
+      <view class="group-title">基本条件</view>
       <view class="row-item">
         <text class="k">年龄</text>
         <view class="v">
-          <text class="pick" @click="pickNumber(ageRange, 'age_min')">
+          <text
+            class="val"
+            :class="{ on: filters.age_min }"
+            @click="pickNumber(ageRange, 'age_min')"
+          >
             {{ filters.age_min || '不限' }}
           </text>
           <text class="dash">-</text>
-          <text class="pick" @click="pickNumber(ageRange, 'age_max')">
+          <text
+            class="val"
+            :class="{ on: filters.age_max }"
+            @click="pickNumber(ageRange, 'age_max')"
+          >
             {{ filters.age_max || '不限' }}
           </text>
         </view>
+        <view class="arrow"></view>
       </view>
 
       <view class="row-item">
         <text class="k">身高</text>
         <view class="v">
-          <text class="pick" @click="pickNumber(heightRange, 'height_min')">
+          <text
+            class="val"
+            :class="{ on: filters.height_min }"
+            @click="pickNumber(heightRange, 'height_min')"
+          >
             {{ filters.height_min || '不限' }}
           </text>
           <text class="dash">-</text>
-          <text class="pick" @click="pickNumber(heightRange, 'height_max')">
+          <text
+            class="val"
+            :class="{ on: filters.height_max }"
+            @click="pickNumber(heightRange, 'height_max')"
+          >
             {{ filters.height_max || '不限' }}
           </text>
         </view>
+        <view class="arrow"></view>
       </view>
 
       <view class="row-item" @click="pickDict('education', 'education_min')">
         <text class="k">学历</text>
-        <text class="v ta-r">{{ labelOr('education', filters.education_min) }}</text>
+        <text class="v val" :class="{ on: filters.education_min }">
+          {{ labelOr('education', filters.education_min) }}
+        </text>
+        <view class="arrow"></view>
       </view>
 
       <view class="row-item" @click="pickDict('income_level', 'income_min')">
         <text class="k">月收入</text>
-        <text class="v ta-r">{{ labelOr('income_level', filters.income_min) }}</text>
+        <text class="v val" :class="{ on: filters.income_min }">
+          {{ labelOr('income_level', filters.income_min) }}
+        </text>
+        <view class="arrow"></view>
       </view>
 
-      <view class="filter-group-title second">生活情况</view>
+      <view class="group-divider"></view>
+      <view class="group-title">生活情况</view>
+
       <view class="row-item" @click="pickMarital">
         <text class="k">婚姻状况</text>
-        <text class="v ta-r">
+        <text class="v val" :class="{ on: filters.marital_status !== '' }">
           {{ filters.marital_status ? store.label('marital_status', +filters.marital_status) : '不限' }}
         </text>
+        <view class="arrow"></view>
       </view>
 
       <view class="row-item" @click="pickChildren">
         <text class="k">子女情况</text>
-        <text class="v ta-r">
+        <text class="v val" :class="{ on: filters.has_children !== '' }">
           {{ filters.has_children !== '' ? store.label('has_children', +filters.has_children) : '不限' }}
         </text>
+        <view class="arrow"></view>
       </view>
 
       <view class="row-item">
         <text class="k">所在城市</text>
-        <RegionPicker v-slot="{ text }" class="v ta-r" :code="filters.city_code" @change="onRegion">
-          <text>{{ text || '不限' }}</text>
-        </RegionPicker>
+        <view class="v">
+          <RegionPicker v-slot="{ text }" :code="filters.city_code" @change="onRegion">
+            <text class="val" :class="{ on: !!filters.city_code }">{{ text || '不限' }}</text>
+          </RegionPicker>
+        </view>
+        <view class="arrow"></view>
       </view>
 
       <view class="row-item" @click="pickDict('house_status', 'house_status')">
         <text class="k">购房情况</text>
-        <text class="v ta-r">{{ labelOr('house_status', filters.house_status) }}</text>
+        <text class="v val" :class="{ on: filters.house_status }">
+          {{ labelOr('house_status', filters.house_status) }}
+        </text>
+        <view class="arrow"></view>
       </view>
 
       <view class="row-item" @click="pickDict('car_status', 'car_status')">
         <text class="k">购车情况</text>
-        <text class="v ta-r">{{ labelOr('car_status', filters.car_status) }}</text>
+        <text class="v val" :class="{ on: filters.car_status }">
+          {{ labelOr('car_status', filters.car_status) }}
+        </text>
+        <view class="arrow"></view>
       </view>
 
       <view class="panel-actions">
@@ -263,13 +300,13 @@ function labelOr(type: string, value: number, fallback = '不限') {
 }
 
 .panel-title {
-  font-size: 35rpx;
+  font-size: $font-section;
   font-weight: 650;
   letter-spacing: -0.5rpx;
 }
 
 .panel-note {
-  font-size: 22rpx;
+  font-size: $font-caption;
   color: $text-placeholder;
 }
 
@@ -277,7 +314,7 @@ function labelOr(type: string, value: number, fallback = '不限') {
   display: flex;
   align-items: center;
   gap: 10rpx;
-  font-size: 24rpx;
+  font-size: $font-caption;
   color: $brand;
   font-weight: 600;
 }
@@ -304,55 +341,72 @@ function labelOr(type: string, value: number, fallback = '不限') {
   box-shadow: $shadow-card;
 }
 
-.filter-group-title {
-  padding: 26rpx 0 8rpx;
-  font-size: 23rpx;
+.group-title {
+  padding: 28rpx 0 6rpx;
+  font-size: $font-caption;
+  letter-spacing: 1rpx;
   color: $text-weak;
   font-weight: 600;
+}
 
-  &.second {
-    padding-top: 30rpx;
-  }
+/* 组间只用一条分隔线，组内靠留白分节 */
+.group-divider {
+  height: 1rpx;
+  background: $border;
+  margin-top: 18rpx;
 }
 
 .row-item {
   display: flex;
   align-items: center;
-  min-height: 94rpx;
-  border-bottom: 1rpx solid $border;
-  font-size: 28rpx;
+  min-height: 96rpx;
+  font-size: $font-body;
 
   .k {
-    width: 160rpx;
+    width: 168rpx;
+    flex-shrink: 0;
     color: $text-main;
     font-weight: 500;
-    flex-shrink: 0;
-  }
-
-  .v {
-    flex: 1;
-    color: $text-sub;
-  }
-
-  .ta-r {
-    text-align: right;
   }
 }
 
-.pick {
-  display: inline-block;
-  min-width: 96rpx;
-  text-align: center;
-  color: $brand;
-  background: $brand-light;
-  border-radius: $radius-sm;
-  padding: 6rpx 10rpx;
+.v {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8rpx;
+}
+
+/* 未选是中性灰，已选落到品牌色，一眼看出哪几项在生效 */
+.val {
+  font-size: $font-body;
+  color: $text-placeholder;
   font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &.on {
+    color: $brand;
+    font-weight: 600;
+  }
+}
+
+.arrow {
+  width: 12rpx;
+  height: 12rpx;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  border-right: 2rpx solid $text-placeholder;
+  border-bottom: 2rpx solid $text-placeholder;
+  transform: rotate(-45deg);
+  opacity: 0.6;
 }
 
 .dash {
   color: $text-placeholder;
-  margin: 0 10rpx;
 }
 
 .panel-actions {
@@ -366,7 +420,7 @@ function labelOr(type: string, value: number, fallback = '不限') {
 }
 
 .result-count {
-  font-size: 26rpx;
+  font-size: $font-mid;
   color: $text-weak;
   padding: 10rpx 4rpx 20rpx;
   font-variant-numeric: tabular-nums;
@@ -381,8 +435,8 @@ function labelOr(type: string, value: number, fallback = '不限') {
 
 .skeleton-result-card {
   display: grid;
-  grid-template-columns: 202rpx 1fr;
-  gap: 26rpx;
+  grid-template-columns: 224rpx 1fr;
+  gap: 24rpx;
   padding: 18rpx;
   border: 1rpx solid $border;
   border-radius: $radius-lg;
@@ -391,8 +445,8 @@ function labelOr(type: string, value: number, fallback = '不限') {
 }
 
 .skeleton-result-avatar {
-  width: 202rpx;
-  height: 264rpx;
+  width: 224rpx;
+  height: 288rpx;
   border-radius: $radius;
 }
 
@@ -418,7 +472,7 @@ function labelOr(type: string, value: number, fallback = '不限') {
 .end {
   text-align: center;
   color: $text-placeholder;
-  font-size: 24rpx;
+  font-size: $font-caption;
   padding: 36rpx 0;
 }
 </style>
