@@ -1,1 +1,14 @@
+# 【待申请】域名 + ICP 备案 + HTTPS —— docs/07-待申请事项清单.md 第 3 项
+#   微信要求：所有网络请求必须走 HTTPS，且域名已完成 ICP 备案。
+#   当前是公网 IP + HTTP，只够开发调试用；开发者工具需勾选「不校验合法域名」。
+#
+#   备案完成后的切换动作：
+#     base_url: "https://你的域名"
+#   同时要改：
+#     · server/config.prod.yaml 的 upload.base_url
+#     · deploy/template/nginx/matchmaking.conf 的 server_name 与证书路径
+#
+# 【待申请】小程序「社交-婚恋交友」类目资质（ICP 经营许可证）—— 第 1 项
+#   这是全项目唯一不能靠技术解决的事，周期最长（60 个工作日法定），应最早启动。
+#   替代路径：向省通信管理局申请并拿到《不予受理通知书》，提交微信后台可过二次审核。
 base_url: "http://81.70.160.36"

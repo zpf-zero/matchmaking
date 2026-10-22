@@ -3,6 +3,7 @@ import { reactive, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import FormRow from '@/components/FormRow.vue'
 import RegionPicker from '@/components/RegionPicker.vue'
+import RangePicker from '@/components/RangePicker.vue'
 import { userApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 
@@ -11,6 +12,12 @@ const saving = ref(false)
 
 const heightRange = Array.from({ length: 81 }, (_, i) => 140 + i)
 const ageRange = Array.from({ length: 63 }, (_, i) => 18 + i)
+
+/** 字典选项补一个「不限」，用于学历/收入要求 */
+const dictOr = (type: string) => [
+  { value: 0, label: '不限' },
+  ...(store.dict[type] || []),
+]
 
 const req = reactive({
   age_min: 22,
@@ -40,21 +47,6 @@ onLoad(async () => {
     })
   }
 })
-
-function pickNum(range: number[], field: 'age_min' | 'age_max' | 'height_min' | 'height_max') {
-  uni.showActionSheet({
-    itemList: range.map(String),
-    success: (res) => (req[field] = range[res.tapIndex]),
-  })
-}
-
-function pickDict(type: string, field: 'education_min' | 'income_min') {
-  const list = [{ value: 0, label: '不限' }, ...(store.dict[type] || [])]
-  uni.showActionSheet({
-    itemList: list.map((i) => i.label),
-    success: (res) => (req[field] = list[res.tapIndex].value),
-  })
-}
 
 function onRegion(v: { code: string }) {
   req.city_codes = v.code
@@ -98,29 +90,53 @@ async function save() {
 
     <view class="card">
       <FormRow label="年龄范围" align-right>
-        <text class="pick" @click="pickNum(ageRange, 'age_min')">{{ req.age_min }}</text>
+        <RangePicker v-model="req.age_min" :options="ageRange" :numeric-suffix="''">
+          <template #default="{ text, placeholder }">
+            <text class="pick" :class="{ ph: !text }">{{ text || placeholder }}</text>
+          </template>
+        </RangePicker>
         <text class="dash">-</text>
-        <text class="pick" @click="pickNum(ageRange, 'age_max')">{{ req.age_max }}</text>
+        <RangePicker v-model="req.age_max" :options="ageRange" :numeric-suffix="''">
+          <template #default="{ text, placeholder }">
+            <text class="pick" :class="{ ph: !text }">{{ text || placeholder }}</text>
+          </template>
+        </RangePicker>
         <text class="unit">岁</text>
       </FormRow>
 
       <FormRow label="身高范围" align-right>
-        <text class="pick" @click="pickNum(heightRange, 'height_min')">{{ req.height_min }}</text>
+        <RangePicker v-model="req.height_min" :options="heightRange" :numeric-suffix="''">
+          <template #default="{ text, placeholder }">
+            <text class="pick" :class="{ ph: !text }">{{ text || placeholder }}</text>
+          </template>
+        </RangePicker>
         <text class="dash">-</text>
-        <text class="pick" @click="pickNum(heightRange, 'height_max')">{{ req.height_max }}</text>
+        <RangePicker v-model="req.height_max" :options="heightRange" :numeric-suffix="''">
+          <template #default="{ text, placeholder }">
+            <text class="pick" :class="{ ph: !text }">{{ text || placeholder }}</text>
+          </template>
+        </RangePicker>
         <text class="unit">cm</text>
       </FormRow>
 
       <FormRow label="学历要求" align-right>
-        <text @click="pickDict('education', 'education_min')">
-          {{ req.education_min ? store.label('education', req.education_min) + '及以上' : '不限' }}
-        </text>
+        <RangePicker v-model="req.education_min" :options="dictOr('education')">
+          <template #default="{ text, placeholder }">
+            <text :class="{ ph: !req.education_min }">
+              {{ req.education_min ? text + '及以上' : placeholder }}
+            </text>
+          </template>
+        </RangePicker>
       </FormRow>
 
       <FormRow label="收入要求" align-right>
-        <text @click="pickDict('income_level', 'income_min')">
-          {{ req.income_min ? store.label('income_level', req.income_min) + '及以上' : '不限' }}
-        </text>
+        <RangePicker v-model="req.income_min" :options="dictOr('income_level')">
+          <template #default="{ text, placeholder }">
+            <text :class="{ ph: !req.income_min }">
+              {{ req.income_min ? text + '及以上' : placeholder }}
+            </text>
+          </template>
+        </RangePicker>
       </FormRow>
 
       <FormRow label="可接受婚史" align-right>
@@ -205,17 +221,25 @@ async function save() {
   color: $text-placeholder;
 }
 
+/* .pick.ph 用复合选择器，保证占位色能盖住 .pick 的品牌色
+   （两者同为单类时靠源码顺序决胜，很容易被后续改动破坏） */
 .pick {
   display: inline-block;
-  min-width: 80rpx;
+  min-width: 72rpx;
   text-align: center;
   color: $brand;
+  font-variant-numeric: tabular-nums;
+
+  &.ph {
+    color: $text-placeholder;
+  }
 }
 
+/* 年龄/身高那行要塞 4 个 picker + 分隔符 + 单位，比别处更挤 */
 .dash,
 .unit {
   color: $text-weak;
-  margin: 0 6rpx;
+  margin: 0 4rpx;
 }
 
 .clear {

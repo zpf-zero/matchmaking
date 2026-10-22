@@ -14,6 +14,10 @@ jwt:
   expire_days: 7
 
 wechat:
+  # 【待申请】AppID / AppSecret —— docs/07-待申请事项清单.md 第 4 项
+  #   需要微信「企业主体 + 微信认证」的小程序，个人主体不可用于婚恋类目
+  #   现在 mock: true，登录直接拿 code 当 openid、手机号手填、文本安全走本地词库
+  #   拿到凭证后：填下面两行 + mock 改 false + 重启。业务代码零改动
   mock: true               # ← 拿到 AppID/AppSecret 后改成 false
   app_id: ""
   app_secret: ""
@@ -26,5 +30,7 @@ upload:
 admin:
   # 白名单内的 openid 登录时自动置为超级管理员（role=4）
   # mock 模式下，openid 就是前端传的 code
+  # 首次登录会自动建号、提权为超管，并把「待完善」状态扶正为正常，直接进后台
   super_admin_openids:
+    - "admin"
     - "mock_admin"

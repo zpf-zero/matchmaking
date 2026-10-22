@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onShow, onReachBottom } from '@dcloudio/uni-app'
+import AdminBack from '@/components/AdminBack.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import { adminApi } from '@/api'
 import type { AdminUserItem } from '@/api/types'
-import { useUserStore } from '@/stores/user'
+import { Role, useUserStore } from '@/stores/user'
 
 const store = useUserStore()
 const list = ref<AdminUserItem[]>([])
@@ -73,6 +74,7 @@ function goDetail(id: number) {
 
 <template>
   <view class="page">
+    <AdminBack />
     <view class="search">
       <input
         v-model="keyword"
@@ -105,7 +107,7 @@ function goDetail(id: number) {
         <view class="name-row">
           <text class="name">{{ u.nickname || '未填写' }}</text>
           <text class="uid">#{{ u.id }}</text>
-          <text v-if="u.role > 1" class="role">
+          <text v-if="u.role > Role.User" class="role">
             {{ ['', '', '审核员', '管理员', '超管'][u.role] }}
           </text>
         </view>

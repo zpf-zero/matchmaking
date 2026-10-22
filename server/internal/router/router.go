@@ -33,6 +33,8 @@ func Setup() *gin.Engine {
 		v1.POST("/auth/wx-login", handler.WxLogin)
 		v1.GET("/common/dict", handler.Dict)
 		v1.GET("/common/config", handler.ClientConfig)
+		// 三观题库：登录即可取（答题免费，题目本身无隐私）
+		v1.GET("/common/three-view/questions", handler.ThreeViewQuestions)
 	}
 
 	// ---------- 登录即可访问：资料填写、上传 ----------
@@ -51,7 +53,18 @@ func Setup() *gin.Engine {
 		authed.PUT("/user/photo/sort", handler.SortPhotos)
 		authed.DELETE("/user/photo/:id", handler.DeletePhoto)
 
+		// 三观问答：答题免费（看答案才需权益），故挂在 authed 而非 browse
+		authed.GET("/user/three-view", handler.MyThreeView)
+		authed.PUT("/user/three-view", handler.SaveThreeView)
+
 		authed.POST("/common/upload/image", handler.UploadImage)
+
+		// 邀请码：登录即可。绑定发生在资料提交审核之前 —— 权益要等
+		// 被邀请人通过人工审核才结算，所以这里不挂 RequireBrowse/Active
+		authed.GET("/invite/my-code", handler.MyInvite)
+		authed.POST("/invite/bind", handler.BindInvite)
+		// 邀请人查看结算结果，清除「我的」页红点
+		authed.POST("/invite/seen", handler.MarkInviteSeen)
 	}
 
 	// ---------- 资料已提交：可浏览他人 ----------
@@ -111,6 +124,12 @@ func Setup() *gin.Engine {
 	{
 		admin.POST("/user/:id/ban", handler.AdminBan)
 		admin.POST("/user/:id/unban", handler.AdminUnban)
+	}
+
+	// 角色任命只对超级管理员开放：管理员若能自己提权，权限层级就失效了
+	superAdmin := v1.Group("/admin", middleware.Auth(), middleware.RequireRole(model.RoleSuperAdmin))
+	{
+		superAdmin.POST("/user/:id/role", handler.AdminSetRole)
 	}
 
 	return r

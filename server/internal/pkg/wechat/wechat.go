@@ -15,6 +15,27 @@ import (
 	"hunjie/internal/pkg/sensitive"
 )
 
+/*
+ * ============================ 本文件涉及的待申请事项 ============================
+ *
+ * 【待申请】AppID / AppSecret —— 见 docs/07-待申请事项清单.md 第 4 项
+ *   需要：微信企业主体小程序 + 微信认证（300 元/年）
+ *   落点：config.dev.yaml / config.prod.yaml 的 wechat.app_id / app_secret
+ *   当前：wechat.mock=true（本文件走 mockClient），全部能力为降级实现
+ *   切换：填好凭证 + mock 改 false + 重启，业务代码零改动
+ *
+ * 【待申请】隐私保护指引 —— 见清单第 6 项
+ *   必须在微信后台配置「用户隐私保护指引」，否则真实模式下 getPhoneNumber /
+ *   chooseAvatar 真机调用会直接失败（开发者工具里可能看不出问题）
+ *
+ * 【待申请】手机号快速验证组件计费 —— 见清单第 5 项
+ *   0.03 元/次，每小程序 1000 次免费额度
+ *
+ * 【待接入】图片内容安全 —— 见清单第 7 项
+ *   当前头像/相册走人工审核、聊天图片靠举报；文本安全已有 MsgSecCheck
+ * ============================================================================
+ */
+
 // Client 微信接口。Mock 与真实是同一接口的两个实现，
 // 拿到 AppID/AppSecret 后只需把当前环境 YAML 里的 wechat.mock 改成 false，业务代码不动。
 type Client interface {

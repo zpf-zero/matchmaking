@@ -17,10 +17,21 @@ type User struct {
 	Role         int8           `gorm:"default:1" json:"role"`
 	Status       int8           `json:"status"`
 	BanReason    string         `gorm:"size:255" json:"ban_reason,omitempty"`
+	VipLevel     int8           `gorm:"default:0" json:"vip_level"` // 权益等级 0无 1已解锁完整资料（永久）
+	VipExpireAt  *time.Time     `json:"-"`                          // 旧字段，已由 VipLevel 取代，仅为兼容保留，不对外返回
 	LastActiveAt *time.Time     `json:"last_active_at"`
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"-"`
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// HasVip 当前是否拥有权益。
+//
+// 判定只看 VipLevel，不再看到期时间 —— 权益是「永久解锁」而非「限时」。
+// 详见 docs/08-权益体系重构方案.md 4.4：赠送权益用天数逻辑没有心理锚点
+// （用户看到「剩 7 天」不知道能换来什么），且倒计时会加速犹豫型用户流失。
+func (u *User) HasVip() bool {
+	return u.VipLevel >= VipLevelUnlocked
 }
 
 // UserProfile 详细资料
@@ -45,6 +56,19 @@ type UserProfile struct {
 	HomeProvince  string         `gorm:"size:32" json:"home_province"`
 	HomeCity      string         `gorm:"size:32" json:"home_city"`
 	SelfIntro     string         `gorm:"size:1000" json:"self_intro"`
+	Industry      int8           `json:"industry"` // 行业标签（粗粒度），免费内容
+
+	// ---- 原生家庭（权益内容，默认私有，需用户主动开启 FamilyVisible）----
+	// 敏感度最高的资料块。默认不公开是刻意的：默认公开会劝退大量用户。
+	// 父母职业只记「类型」不记具体单位 —— 写「公务员」可以，写「XX局」不行，
+	// 后者结合年龄/城市可被反查到具体的人。
+	FamilyParentOcc int8   `json:"family_parent_occ"`
+	FamilyAtmosphere int8  `json:"family_atmosphere"`
+	FamilyOnlyChild  int8  `json:"family_only_child"` // 1是 2否
+	FamilyCity       string `gorm:"size:32" json:"family_city"`
+	FamilyNote       string `gorm:"size:200" json:"family_note"`
+	FamilyVisible    int8   `json:"family_visible"` // 1 表示同意对权益用户展示
+
 	CompleteRate  int8           `json:"complete_rate"`
 	AuditStatus   int8           `json:"audit_status"`
 	AuditRemark   string         `gorm:"size:255" json:"audit_remark"`
@@ -52,6 +76,19 @@ type UserProfile struct {
 	CreatedAt     time.Time      `json:"-"`
 	UpdatedAt     time.Time      `json:"-"`
 	DeletedAt     gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// ThreeViewAnswer 三观问答答案。
+//
+// 答题免费、「看到对方的答案」才需权益 —— 若答题也要权益就没人填了，
+// 而题库的价值恰恰在于让所有人都填（见方案 4.2②）。
+type ThreeViewAnswer struct {
+	ID        uint64    `gorm:"primaryKey" json:"id"`
+	UserID    uint64    `json:"user_id"`
+	QID       int16     `json:"q_id"`       // 对应 ThreeViewQuestions 的 ID
+	OptionIdx int8      `json:"option_idx"` // 所选选项下标
+	CreatedAt time.Time `json:"-"`
+	UpdatedAt time.Time `json:"-"`
 }
 
 // UserRequirement 择偶要求
@@ -144,6 +181,31 @@ type Blacklist struct {
 	UserID       uint64    `json:"user_id"`
 	TargetUserID uint64    `json:"target_user_id"`
 	CreatedAt    time.Time `json:"created_at"`
+}
+
+// InviteCode 邀请码。一个用户恒定一个短码
+type InviteCode struct {
+	ID        uint64    `gorm:"primaryKey" json:"id"`
+	UserID    uint64    `json:"user_id"`
+	Code      string    `gorm:"size:12" json:"code"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// InviteRelation 邀请关系与结算。
+//
+// 绑定与结算刻意分离：注册/填码时写入 status=0，被邀请人通过人工审核后
+// 才置为 1 并发放双方权益。这是本方案合规的基础 —— 被邀请人必须走完
+// 「注册 → 完善资料 → 通过审核」这段真实业务流程，才构成微信规范认定的
+// 「深度互动」，而空号/资料不全的号拿不到奖励，也天然对抗刷量。
+type InviteRelation struct {
+	ID          uint64     `gorm:"primaryKey" json:"id"`
+	InviterID   uint64     `json:"inviter_id"`
+	InviteeID   uint64     `json:"invitee_id"` // 唯一索引，一人只能被邀请一次
+	Code        string     `gorm:"size:12" json:"code"`
+	Status      int8       `json:"status"`
+	SettledAt   *time.Time `json:"settled_at"`
+	InviterSeen bool       `json:"-"` // 结算后邀请人是否已查看（红点/弹层用），不对外返回
+	CreatedAt   time.Time  `json:"created_at"`
 }
 
 // Report 举报

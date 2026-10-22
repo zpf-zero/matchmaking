@@ -9,6 +9,19 @@ const loading = ref(false)
 /** mock 模式下用它当 openid：同一个值就是同一个账号，方便反复测试 */
 const mockCode = ref('test_user_1')
 
+/**
+ * 预设账号。
+ *
+ * mock 模式下 openid 就是这里输入的字符串 —— 敲错了不会报错，而是当场注册一个
+ * 新用户，然后被「完善资料」向导拦住，很难意识到是账号名打错。
+ * 这里把常用账号直接列出来点选，避免手打错。
+ */
+const mockPresets = [
+  { code: 'admin', label: '管理员', note: '超管' },
+  { code: 'test_user_1', label: '测试小美', note: '正常' },
+  { code: 'test_user_2', label: '测试小明', note: '正常' },
+]
+
 onLoad(() => {
   store.fetchConfig()
 })
@@ -33,13 +46,15 @@ async function handleLogin() {
       return
     }
 
-    const res = await store.login(code)
+    await store.login(code)
     await store.fetchMe()
 
-    if (res.need_profile || store.status === 0) {
+    // 运营角色（审核员及以上）登录只为进后台，直接落到工作台；
+    // 普通用户才按资料完善度分流。判据统一走 store.needsProfile。
+    if (store.needsProfile) {
       uni.reLaunch({ url: '/pages/profile/setup' })
     } else {
-      uni.reLaunch({ url: '/pages/index/index' })
+      uni.reLaunch({ url: store.homePath })
     }
   } catch {
     // request 层已提示
@@ -66,21 +81,38 @@ function openAgreement(type: 'user' | 'privacy') {
 <template>
   <view class="login">
     <view class="header">
-      <view class="brand-row">
+      <view class="brand-row enter" style="animation-delay: 40ms">
         <view class="logo">缘</view>
         <view class="title">缘来婚恋</view>
       </view>
       <view class="statement">
-        <text>认真认识，</text>
-        <text>再决定心意</text>
+        <!-- 品牌主张两行错峰升起，是全页唯一的「展演」时刻 -->
+        <text class="line enter" style="animation-delay: 180ms">认真认识，</text>
+        <text class="line enter" style="animation-delay: 300ms">再决定心意</text>
       </view>
-      <view class="slogan">真实资料人工审核，让每一次认识更有依据。</view>
+      <view class="slogan enter" style="animation-delay: 420ms">
+        真实资料人工审核，让每一次认识更有依据。
+      </view>
     </view>
 
-    <view class="form">
+    <view class="form enter" style="animation-delay: 520ms">
       <view v-if="store.mockMode" class="mock-box">
         <view class="mock-label">开发账号</view>
-        <view class="mock-tip">输入不同标识可切换测试用户</view>
+        <view class="mock-tip">
+          输错标识会当场注册成普通用户，请从下面点选或照抄
+        </view>
+        <view class="mock-presets">
+          <view
+            v-for="p in mockPresets"
+            :key="p.code"
+            class="preset"
+            :class="{ on: mockCode === p.code }"
+            @click="mockCode = p.code"
+          >
+            <text class="preset-name">{{ p.label }}</text>
+            <text class="preset-note">{{ p.note }}</text>
+          </view>
+        </view>
         <input
           v-model="mockCode"
           class="mock-input"
@@ -124,7 +156,7 @@ function openAgreement(type: 'user' | 'privacy') {
       </view>
     </view>
 
-    <view class="footer">
+    <view class="footer enter" style="animation-delay: 640ms">
       <text>仅向 18 周岁以上单身人士提供服务</text>
       <text class="footer-sep"></text>
       <text>资料人工审核</text>
@@ -194,6 +226,34 @@ function openAgreement(type: 'user' | 'privacy') {
   line-height: 1.2;
   text-wrap: balance;
   margin-bottom: 24rpx;
+
+  .line {
+    display: block;
+  }
+}
+
+/* 入场：元素从下方轻微浮起并淡入。
+   位移刻意做得克制（18rpx），登录页要的是「稳」，不是活泼 */
+.enter {
+  animation: enter-up 560ms cubic-bezier(0.22, 0.8, 0.3, 1) both;
+}
+
+@keyframes enter-up {
+  from {
+    transform: translateY(18rpx);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* 用户开了系统「减弱动态效果」时直接落到终态，不做位移 */
+@media (prefers-reduced-motion: reduce) {
+  .enter {
+    animation: none;
+  }
 }
 
 .slogan {
@@ -245,6 +305,50 @@ function openAgreement(type: 'user' | 'privacy') {
   }
 }
 
+/* 预设账号：点一下就填好，省得手打出「差一个字母」的新账号 */
+.mock-presets {
+  display: flex;
+  gap: 14rpx;
+  margin-bottom: 20rpx;
+}
+
+.preset {
+  flex: 1;
+  min-width: 0;
+  padding: 16rpx 12rpx;
+  border: 1rpx solid $border;
+  border-radius: $radius;
+  background: $bg-card;
+  text-align: center;
+  transition: border-color 180ms ease, background-color 180ms ease;
+
+  &:active {
+    background: $bg-subtle;
+  }
+
+  &.on {
+    border-color: $brand;
+    background: $bg-accent;
+  }
+}
+
+.preset-name {
+  display: block;
+  font-size: $font-caption;
+  font-weight: 600;
+  color: $text-main;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preset-note {
+  display: block;
+  margin-top: 4rpx;
+  font-size: $font-micro;
+  color: $text-weak;
+}
+
 .ph {
   color: $text-placeholder;
 }
@@ -277,15 +381,31 @@ function openAgreement(type: 'user' | 'privacy') {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background-color 160ms ease, border-color 160ms ease;
 
   &.checked {
     background: $brand;
     border-color: $brand;
+
+    .tick {
+      animation: tick-in 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
   }
 
   .tick {
     color: $text-on-accent;
     font-size: $font-micro;
+  }
+}
+
+@keyframes tick-in {
+  from {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
   }
 }
 

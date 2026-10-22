@@ -114,10 +114,18 @@ func MyLikes(c *gin.Context) {
 	listInteraction(c, service.ListMyLikes)
 }
 
-// ViewedMe 谁看过我
+// ViewedMe 谁看过我。非权益用户只返回前若干条，其余锁定
 // GET /api/v1/interaction/viewed-me
 func ViewedMe(c *gin.Context) {
-	listInteraction(c, service.ListViewedMe)
+	var page dto.PageQuery
+	_ = c.ShouldBindQuery(&page)
+
+	resp, err := service.ListViewedMe(middleware.CurrentUser(c), page)
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	response.OK(c, resp)
 }
 
 func listInteraction(c *gin.Context,

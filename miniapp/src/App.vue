@@ -4,6 +4,39 @@ import { useUserStore } from '@/stores/user'
 import { ws } from '@/utils/ws'
 
 /**
+ * 微信隐私授权兜底。
+ *
+ * 微信规定：凡涉及用户个人信息的接口（getPhoneNumber / chooseAvatar / chooseImage 等），
+ * 必须先在后台配置《用户隐私保护指引》，且用户同意后才能调用；
+ * 否则真机直接 fail（errno:104 / api scope is not declared in the privacy agreement）。
+ *
+ * 这里用官方 onNeedPrivacyAuthorization 做全局兜底：一旦有接口触发隐私需求，
+ * 就弹一次官方隐私授权框，用户同意后全小程序所有隐私接口解锁。
+ * 不写自定义弹窗（自定义容易漏掉同步步骤，且会报 buttonId 错误）。
+ *
+ * 【待申请】需在小程序后台「设置 → 服务内容声明 → 用户隐私保护指引」完成声明
+ *   —— docs/07-待申请事项清单.md 第 6 项。本函数只是用户侧交互，
+ *   后台未声明时即使同意也调不通。
+ */
+function setupPrivacyGuard() {
+  // #ifdef MP-WEIXIN
+  const wxApi = (typeof wx !== 'undefined' ? wx : null) as any
+  if (!wxApi) return
+
+  // onNeedPrivacyAuthorization：微信在有隐私接口待授权时回调（基础库 2.32.3+）
+  if (typeof wxApi.onNeedPrivacyAuthorization === 'function') {
+    wxApi.onNeedPrivacyAuthorization((resolve: any) => {
+      // 用官方隐私授权弹窗；selectPrivacyContract 可跳转隐私协议全文
+      wxApi.requirePrivacyAuthorize({
+        success: () => resolve({ event: 'agree', buttonId: 'agree-btn' }),
+        fail: () => resolve({ event: 'disagree' }),
+      })
+    })
+  }
+  // #endif
+}
+
+/**
  * 全局实时通知。
  * 用户在任何页面被喜欢/配对成功都能立刻感知，
  * 而不是要等切到消息页才发现。
@@ -40,8 +73,69 @@ function setupGlobalNotify(store: ReturnType<typeof useUserStore>) {
   ws.on('message', () => store.fetchUnread())
 }
 
-onLaunch(async () => {
+/**
+ * 捕获邀请码。
+ *
+ * 三条入口都要处理：
+ *   1. 好友转发卡片 → 参数在 options.query 里，如 { path, query: { invite: 'AB12CD' } }
+ *   2. 小程序码（太阳码）→ 同样在 options.query.scene，是 URLEncode 过的 "i=AB12CD"
+ *   3. 小程序已在后台时被卡片唤起 → onLaunch 不会再触发，只有 onShow 带参数
+ *
+ * ⚠️ 关于参数层级（曾踩坑）：
+ * 微信 getLaunchOptionsSync() / onAppShow 给的是**原生结构**
+ *   { path: string, scene: number, query: {...}, referrerInfo }
+ * 业务参数一律在 `query` 下，**不在顶层**。且顶层的 `scene` 是数字场景值
+ * （1047=小程序码扫描等），不是小程序码里带的那串字符。
+ * uni-app 这里不做拍平，直接把原生对象转给 onLaunch/onShow。
+ * 所以必须读 options.query.invite，读 options.invite 永远是 undefined。
+ *
+ * 只暂存到本地，不在此时绑定：绑定要等用户注册完（有 token）之后。
+ * 暂存而不是立即提交，也让用户有机会在向导里手动改掉填错的码。
+ */
+const PENDING_INVITE_KEY = 'pending_invite_code'
+
+function captureInvite(options: any) {
+  if (!options) return
+  // 业务参数在 query 下；兼容 uni-app 某些平台可能拍平到顶层的写法
+  const q = options.query || {}
+  let code = q.invite || q.invite_code || options.invite || options.invite_code || ''
+
+  // 扫码进入：小程序码的参数在 query.scene，需解码，格式形如 "i=AB12CD"
+  // （scene 只支持 ASCII 可见字符；页面 onLoad 里则在 options.scene，无 query 层）
+  const rawScene = q.scene || (typeof options.scene === 'string' ? options.scene : '')
+  if (!code && rawScene) {
+    try {
+      const decoded = decodeURIComponent(rawScene)
+      const params: Record<string, string> = {}
+      decoded.split('&').forEach((kv) => {
+        const idx = kv.indexOf('=')
+        if (idx > 0) params[kv.slice(0, idx)] = kv.slice(idx + 1)
+      })
+      code = params.i || params.invite || ''
+    } catch {
+      // scene 格式异常时忽略，不影响正常进入
+    }
+  }
+
+  code = String(code).trim().toUpperCase()
+  // 邀请码是 6 位字母数字（去掉易混淆字符的字母表）
+  if (code && /^[0-9A-Z]{4,12}$/.test(code)) {
+    uni.setStorageSync(PENDING_INVITE_KEY, code)
+  }
+}
+
+/** 取并清除待绑定的邀请码 */
+function takePendingInvite(): string {
+  const code = uni.getStorageSync(PENDING_INVITE_KEY) || ''
+  if (code) uni.removeStorageSync(PENDING_INVITE_KEY)
+  return code
+}
+
+onLaunch(async (options) => {
   const store = useUserStore()
+  captureInvite(options)
+  setupPrivacyGuard()
+
   store.fetchConfig()
   store.fetchDict()
   setupGlobalNotify(store)
@@ -53,8 +147,10 @@ onLaunch(async () => {
 
   try {
     await store.fetchMe()
-    // 资料没填完直接引导去填，否则首页是空的，用户不知道该干什么
-    if (store.status === 0) {
+    await flushPendingInvite(store)
+    // 只有「普通用户且资料未提交」才引导去填资料；运营角色直接进各自首页。
+    // 判据统一走 store.needsProfile（内含 role 判断），避免这里漏掉管理员。
+    if (store.needsProfile) {
       uni.reLaunch({ url: '/pages/profile/setup' })
       return
     }
@@ -64,8 +160,36 @@ onLaunch(async () => {
   }
 })
 
-onShow(() => {
+/**
+ * 把待绑定的邀请码补交上去。
+ *
+ * 覆盖「老用户扫了朋友的码」和「新用户注册后回到首页」两种收尾场景。
+ * 已绑定过的用户后端会直接返回「已经使用过邀请码」，静默忽略即可 ——
+ * 不要打扰用户，更不要在用户没主动操作时弹窗。
+ */
+async function flushPendingInvite(store: ReturnType<typeof useUserStore>) {
+  const code = uni.getStorageSync(PENDING_INVITE_KEY) || ''
+  if (!code) return
+  if (store.status === 0) return // 还在填资料，向导提交时会带上，这里不抢跑
+  try {
+    const { inviteApi } = await import('@/api')
+    await inviteApi.bind(code)
+    uni.removeStorageSync(PENDING_INVITE_KEY)
+    uni.showToast({ title: '邀请码绑定成功', icon: 'none' })
+  } catch {
+    // 无效/已使用：清掉本地暂存，避免每次启动都重试
+    uni.removeStorageSync(PENDING_INVITE_KEY)
+  }
+}
+
+onShow((options: any) => {
   const store = useUserStore()
+
+  // 小程序已在后台时，被分享卡片/小程序码唤起只会触发 onShow（不走 onLaunch），
+  // 这里必须补捕一次，否则「老用户在小程序开着的情况下点分享链接」拿不到邀请码
+  captureInvite(options)
+  if (store.isLogin) flushPendingInvite(store)
+
   if (store.isLogin && store.canInteract) {
     // 小程序切后台会被断连，回前台重新接上
     ws.connect()

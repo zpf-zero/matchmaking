@@ -30,6 +30,11 @@ onShow(async () => {
 function go(url: string) {
   uni.navigateTo({ url })
 }
+
+/** 用户端是 tabBar 页，必须走 switchTab；后台工作台是普通页，切走后再回来靠 reLaunch */
+function goUserSide() {
+  uni.switchTab({ url: '/pages/index/index' })
+}
 </script>
 
 <template>
@@ -94,10 +99,17 @@ function go(url: string) {
         <text v-if="store.role < Role.Admin" class="hint">仅查看</text>
         <view class="arrow"></view>
       </view>
+      <!-- 管理员登录后直接落到本页、不在 tabBar 里，给一条回用户端的路 -->
+      <view class="item" @click="goUserSide">
+        <text class="label">进入用户端</text>
+        <text class="hint">以管理员身份浏览</text>
+        <view class="arrow"></view>
+      </view>
     </view>
 
     <view class="note">
-      角色权限由后端逐接口校验。审核员可审核资料与处理举报，封禁用户需要管理员权限。
+      角色权限由后端逐接口校验。审核员可审核资料与处理举报，封禁用户需要管理员权限，
+      变更角色需要超级管理员权限。
     </view>
   </view>
 </template>

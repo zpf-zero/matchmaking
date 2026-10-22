@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { onShow, onReachBottom } from '@dcloudio/uni-app'
 import UserCardItem from '@/components/UserCardItem.vue'
 import RegionPicker from '@/components/RegionPicker.vue'
+import RangePicker from '@/components/RangePicker.vue'
 import { discoverApi } from '@/api'
 import type { UserCard } from '@/api/types'
 import { useUserStore } from '@/stores/user'
@@ -16,8 +17,60 @@ const finished = ref(false)
 const searched = ref(false)
 const panelOpen = ref(true)
 
-const heightRange = [0, ...Array.from({ length: 81 }, (_, i) => 140 + i)]
-const ageRange = [0, ...Array.from({ length: 63 }, (_, i) => 18 + i)]
+// 首项是 0 表示「不限」。做成 {value,label} 让滚轮里直接显示「不限」两个字，
+// 比原来滚出一串 0 更清楚
+const heightOptions = [
+  { value: 0, label: '不限' },
+  ...Array.from({ length: 81 }, (_, i) => {
+    const v = 140 + i
+    return { value: v, label: `${v} cm` }
+  }),
+]
+const ageOptions = [
+  { value: 0, label: '不限' },
+  ...Array.from({ length: 63 }, (_, i) => {
+    const v = 18 + i
+    return { value: v, label: `${v} 岁` }
+  }),
+]
+
+/**
+ * 字典选项补一个「不限」。
+ * 用 computed 而不是普通函数：字典是异步拉取的，函数调用拿不到更新，
+ * 会出现「字典回来了但滚轮里还是只有不限」。
+ */
+const educationOptions = computed(() => [
+  { value: 0, label: '不限' },
+  ...(store.dict['education'] || []),
+])
+
+const incomeOptions = computed(() => [
+  { value: 0, label: '不限' },
+  ...(store.dict['income_level'] || []),
+])
+
+const houseOptions = computed(() => [
+  { value: 0, label: '不限' },
+  ...(store.dict['house_status'] || []),
+])
+
+const carOptions = computed(() => [
+  { value: 0, label: '不限' },
+  ...(store.dict['car_status'] || []),
+])
+
+// 婚史和子女在筛选里是字符串空值表示「不限」，而别处用的是数字。
+// 这里用负号当哨兵值：0 会被 doSearch 那层当「未填」丢掉，负号不会，
+// 也不会和字典里真实存在的 0/1/2/3 撞车。
+const maritalOptions = computed(() => [
+  { value: -1, label: '不限' },
+  ...(store.dict['marital_status'] || []),
+])
+
+const childrenOptions = computed(() => [
+  { value: -1, label: '不限' },
+  ...(store.dict['has_children'] || []),
+])
 
 const filters = reactive({
   age_min: 0,
@@ -46,37 +99,6 @@ if (saved && typeof saved === 'object') {
 onShow(() => {
   store.fetchDict()
 })
-
-function pickNumber(range: number[], field: 'age_min' | 'age_max' | 'height_min' | 'height_max') {
-  uni.showActionSheet({
-    itemList: range.map((v) => (v === 0 ? '不限' : String(v))),
-    success: (res) => (filters[field] = range[res.tapIndex]),
-  })
-}
-
-function pickDict(type: string, field: 'education_min' | 'income_min' | 'house_status' | 'car_status') {
-  const list = [{ value: 0, label: '不限' }, ...(store.dict[type] || [])]
-  uni.showActionSheet({
-    itemList: list.map((i) => i.label),
-    success: (res) => (filters[field] = list[res.tapIndex].value),
-  })
-}
-
-function pickMarital() {
-  const items = [{ value: '', label: '不限' }, ...(store.dict['marital_status'] || []).map((i) => ({ value: String(i.value), label: i.label }))]
-  uni.showActionSheet({
-    itemList: items.map((i) => i.label),
-    success: (res) => (filters.marital_status = items[res.tapIndex].value),
-  })
-}
-
-function pickChildren() {
-  const items = [{ value: '', label: '不限' }, ...(store.dict['has_children'] || []).map((i) => ({ value: String(i.value), label: i.label }))]
-  uni.showActionSheet({
-    itemList: items.map((i) => i.label),
-    success: (res) => (filters.has_children = items[res.tapIndex].value),
-  })
-}
 
 function onRegion(v: { code: string }) {
   filters.city_code = v.code
@@ -126,10 +148,6 @@ async function doSearch(resetPage = true) {
 onReachBottom(() => {
   if (searched.value && !finished.value) doSearch(false)
 })
-
-function labelOr(type: string, value: number, fallback = '不限') {
-  return value ? store.label(type, value) : fallback
-}
 </script>
 
 <template>
@@ -150,79 +168,93 @@ function labelOr(type: string, value: number, fallback = '不限') {
       <view class="row-item">
         <text class="k">年龄</text>
         <view class="v">
-          <text
-            class="val"
-            :class="{ on: filters.age_min }"
-            @click="pickNumber(ageRange, 'age_min')"
-          >
-            {{ filters.age_min || '不限' }}
-          </text>
+          <RangePicker v-model="filters.age_min" :options="ageOptions">
+            <template #default="{ text }">
+              <text class="val" :class="{ on: filters.age_min }">{{ text }}</text>
+            </template>
+          </RangePicker>
           <text class="dash">-</text>
-          <text
-            class="val"
-            :class="{ on: filters.age_max }"
-            @click="pickNumber(ageRange, 'age_max')"
-          >
-            {{ filters.age_max || '不限' }}
-          </text>
+          <RangePicker v-model="filters.age_max" :options="ageOptions">
+            <template #default="{ text }">
+              <text class="val" :class="{ on: filters.age_max }">{{ text }}</text>
+            </template>
+          </RangePicker>
         </view>
-        <view class="arrow"></view>
       </view>
 
       <view class="row-item">
         <text class="k">身高</text>
         <view class="v">
-          <text
-            class="val"
-            :class="{ on: filters.height_min }"
-            @click="pickNumber(heightRange, 'height_min')"
-          >
-            {{ filters.height_min || '不限' }}
-          </text>
+          <RangePicker v-model="filters.height_min" :options="heightOptions">
+            <template #default="{ text }">
+              <text class="val" :class="{ on: filters.height_min }">{{ text }}</text>
+            </template>
+          </RangePicker>
           <text class="dash">-</text>
-          <text
-            class="val"
-            :class="{ on: filters.height_max }"
-            @click="pickNumber(heightRange, 'height_max')"
-          >
-            {{ filters.height_max || '不限' }}
-          </text>
+          <RangePicker v-model="filters.height_max" :options="heightOptions">
+            <template #default="{ text }">
+              <text class="val" :class="{ on: filters.height_max }">{{ text }}</text>
+            </template>
+          </RangePicker>
+        </view>
+      </view>
+
+      <view class="row-item">
+        <text class="k">学历</text>
+        <view class="v">
+          <RangePicker v-model="filters.education_min" :options="educationOptions">
+            <template #default="{ text }">
+              <text class="val" :class="{ on: filters.education_min }">{{ text }}</text>
+            </template>
+          </RangePicker>
         </view>
         <view class="arrow"></view>
       </view>
 
-      <view class="row-item" @click="pickDict('education', 'education_min')">
-        <text class="k">学历</text>
-        <text class="v val" :class="{ on: filters.education_min }">
-          {{ labelOr('education', filters.education_min) }}
-        </text>
-        <view class="arrow"></view>
-      </view>
-
-      <view class="row-item" @click="pickDict('income_level', 'income_min')">
+      <view class="row-item">
         <text class="k">月收入</text>
-        <text class="v val" :class="{ on: filters.income_min }">
-          {{ labelOr('income_level', filters.income_min) }}
-        </text>
+        <view class="v">
+          <RangePicker v-model="filters.income_min" :options="incomeOptions">
+            <template #default="{ text }">
+              <text class="val" :class="{ on: filters.income_min }">{{ text }}</text>
+            </template>
+          </RangePicker>
+        </view>
         <view class="arrow"></view>
       </view>
 
       <view class="group-divider"></view>
       <view class="group-title">生活情况</view>
 
-      <view class="row-item" @click="pickMarital">
+      <view class="row-item">
         <text class="k">婚姻状况</text>
-        <text class="v val" :class="{ on: filters.marital_status !== '' }">
-          {{ filters.marital_status ? store.label('marital_status', +filters.marital_status) : '不限' }}
-        </text>
+        <view class="v">
+          <RangePicker
+            :model-value="filters.marital_status === '' ? -1 : Number(filters.marital_status)"
+            :options="maritalOptions"
+            @update:model-value="filters.marital_status = $event < 0 ? '' : String($event)"
+          >
+            <template #default="{ text }">
+              <text class="val" :class="{ on: filters.marital_status !== '' }">{{ text }}</text>
+            </template>
+          </RangePicker>
+        </view>
         <view class="arrow"></view>
       </view>
 
-      <view class="row-item" @click="pickChildren">
+      <view class="row-item">
         <text class="k">子女情况</text>
-        <text class="v val" :class="{ on: filters.has_children !== '' }">
-          {{ filters.has_children !== '' ? store.label('has_children', +filters.has_children) : '不限' }}
-        </text>
+        <view class="v">
+          <RangePicker
+            :model-value="filters.has_children === '' ? -1 : Number(filters.has_children)"
+            :options="childrenOptions"
+            @update:model-value="filters.has_children = $event < 0 ? '' : String($event)"
+          >
+            <template #default="{ text }">
+              <text class="val" :class="{ on: filters.has_children !== '' }">{{ text }}</text>
+            </template>
+          </RangePicker>
+        </view>
         <view class="arrow"></view>
       </view>
 
@@ -236,19 +268,27 @@ function labelOr(type: string, value: number, fallback = '不限') {
         <view class="arrow"></view>
       </view>
 
-      <view class="row-item" @click="pickDict('house_status', 'house_status')">
+      <view class="row-item">
         <text class="k">购房情况</text>
-        <text class="v val" :class="{ on: filters.house_status }">
-          {{ labelOr('house_status', filters.house_status) }}
-        </text>
+        <view class="v">
+          <RangePicker v-model="filters.house_status" :options="houseOptions">
+            <template #default="{ text }">
+              <text class="val" :class="{ on: filters.house_status }">{{ text }}</text>
+            </template>
+          </RangePicker>
+        </view>
         <view class="arrow"></view>
       </view>
 
-      <view class="row-item" @click="pickDict('car_status', 'car_status')">
+      <view class="row-item">
         <text class="k">购车情况</text>
-        <text class="v val" :class="{ on: filters.car_status }">
-          {{ labelOr('car_status', filters.car_status) }}
-        </text>
+        <view class="v">
+          <RangePicker v-model="filters.car_status" :options="carOptions">
+            <template #default="{ text }">
+              <text class="val" :class="{ on: filters.car_status }">{{ text }}</text>
+            </template>
+          </RangePicker>
+        </view>
         <view class="arrow"></view>
       </view>
 

@@ -6,6 +6,7 @@ import (
 	"hunjie/internal/config"
 	"hunjie/internal/model"
 	"hunjie/internal/pkg/response"
+	"hunjie/internal/service"
 )
 
 // Dict 全量枚举字典。前端启动时拉一次缓存到本地
@@ -21,7 +22,10 @@ func ClientConfig(c *gin.Context) {
 		// mock 模式下前端手机号走输入框，真实模式走微信授权按钮
 		"mock_mode":     config.C.WeChat.Mock,
 		"notice":        "",
-		"max_photo_num": 9,
+		"max_photo_num": service.MaxPhotoNum,
+		// 免费可见照片张数。前端用它渲染「还有 N 张」的解锁提示，
+		// 与后端 model.FreePhotoLimit 是同一个口径来源
+		"free_photo_limit": model.FreePhotoLimit,
 	})
 }
 

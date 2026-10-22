@@ -65,7 +65,7 @@ function deleteAccount() {
 
 <template>
   <view class="page">
-    <view class="group">
+    <view class="group" style="animation-delay: 40ms">
       <view class="item">
         <text class="label">手机号</text>
         <text class="value">{{ maskPhone(store.phone) }}</text>
@@ -76,7 +76,7 @@ function deleteAccount() {
       </view>
     </view>
 
-    <view class="group">
+    <view class="group" style="animation-delay: 120ms">
       <view class="item" @click="showAgreement('user')">
         <text class="label">用户协议</text>
         <view class="arrow"></view>
@@ -87,13 +87,13 @@ function deleteAccount() {
       </view>
     </view>
 
-    <view class="group">
+    <view class="group" style="animation-delay: 200ms">
       <view class="item center" @click="logout">
         <text class="label-center">退出登录</text>
       </view>
     </view>
 
-    <view class="group">
+    <view class="group" style="animation-delay: 280ms">
       <view class="item center" @click="deleteAccount">
         <text class="label-center danger">注销账号</text>
       </view>
@@ -114,6 +114,25 @@ function deleteAccount() {
   border-radius: $radius-lg;
   margin-bottom: 24rpx;
   overflow: hidden;
+  /* 分组自上而下依次浮现，建立阅读顺序 */
+  animation: group-in 420ms cubic-bezier(0.22, 0.8, 0.3, 1) both;
+}
+
+@keyframes group-in {
+  from {
+    transform: translateY(16rpx);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .group {
+    animation: none;
+  }
 }
 
 .item {

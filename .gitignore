@@ -18,6 +18,9 @@ Desktop.ini
 server/config.local.yaml
 server/config.*.local.yaml
 
+# 本地 AI 工作台记忆与临时目录（含会话记录，不入库）
+.workbuddy/
+
 # Logs and runtime files
 *.log
 logs/

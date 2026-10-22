@@ -2,14 +2,19 @@ import { http, type PageData } from '@/utils/request'
 import type {
   AdminUserItem,
   AuditItem,
+  ClientConfig,
   Conversation,
   Dict,
   MeResp,
   Message,
+  MyInviteInfo,
+  MyThreeViewResp,
   Profile,
   Requirement,
+  ThreeViewQuestion,
   UserCard,
   UserDetail,
+  ViewedMeResp,
 } from './types'
 
 export const authApi = {
@@ -25,8 +30,16 @@ export const authApi = {
   deleteAccount: () => http.del('/auth/account'),
 }
 
-export const userApi = {
-  me: () => http.get<MeResp>('/user/me'),
+export const inviteApi = {
+  /** 我的邀请码与邀请进度 */
+  myCode: () => http.get<MyInviteInfo>('/invite/my-code'),
+  /** 绑定邀请码。在被邀请人通过人工审核后由后端结算双方权益 */
+  bind: (code: string) => http.post('/invite/bind', { code }),
+  /** 查看结算结果，清除「我的」页红点 */
+  seen: () => http.post('/invite/seen'),
+}
+
+export const userApi = {  me: () => http.get<MeResp>('/user/me'),
   saveProfile: (data: Partial<Profile> & Record<string, any>) => http.put('/user/profile', data),
   saveRequirement: (data: Requirement) => http.put('/user/requirement', data),
   submitAudit: () => http.post('/user/submit-audit'),
@@ -34,6 +47,11 @@ export const userApi = {
   addPhoto: (url: string) => http.post('/user/photo', { url }),
   deletePhoto: (id: number) => http.del(`/user/photo/${id}`),
   sortPhotos: (ids: number[]) => http.put('/user/photo/sort', { ids }),
+
+  /** 我的三观答题状态（含题库与我已选项） */
+  myThreeView: () => http.get<MyThreeViewResp>('/user/three-view'),
+  /** 提交三观答案。答题免费；-1 表示未答 */
+  saveThreeView: (answers: number[]) => http.put('/user/three-view', { answers }),
 }
 
 export const discoverApi = {
@@ -52,7 +70,7 @@ export const interactionApi = {
   unlike: (toUserId: number) => http.del(`/interaction/like/${toUserId}`),
   likedMe: (page = 1) => http.get<PageData<UserCard>>('/interaction/liked-me', { page }),
   myLikes: (page = 1) => http.get<PageData<UserCard>>('/interaction/my-likes', { page }),
-  viewedMe: (page = 1) => http.get<PageData<UserCard>>('/interaction/viewed-me', { page }),
+  viewedMe: (page = 1) => http.get<ViewedMeResp>('/interaction/viewed-me', { page }),
   unreadCount: () =>
     http.get<{ liked_me: number; viewed_me: number; message: number; total: number }>(
       '/interaction/unread-count',
@@ -83,11 +101,13 @@ export const chatApi = {
 
 export const commonApi = {
   dict: () => http.get<Dict>('/common/dict'),
-  config: () => http.get<{ mock_mode: boolean; notice: string; max_photo_num: number }>(
+  config: () => http.get<ClientConfig>(
     '/common/config',
     undefined,
     { noAuthRedirect: true }
   ),
+  /** 三观题库。答题免费，题目本身无隐私，登录即可取 */
+  threeViewQuestions: () => http.get<ThreeViewQuestion[]>('/common/three-view/questions'),
   report: (data: {
     target_user_id: number
     reason: number
@@ -123,4 +143,6 @@ export const adminApi = {
     http.get<PageData<any>>('/admin/report/list', { status, page }),
   handleReport: (id: number, action: 'ignore' | 'ban', remark = '') =>
     http.post(`/admin/report/${id}/handle`, { action, remark }),
+  /** 任命/撤销管理角色。仅超级管理员可用，role: 1 普通用户 / 2 审核员 / 3 管理员 */
+  setRole: (id: number, role: number) => http.post(`/admin/user/${id}/role`, { role }),
 }

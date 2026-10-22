@@ -9,6 +9,14 @@ const store = useUserStore()
 const uploading = ref(false)
 const MAX = 9
 
+/** 正在上传的本地图片路径。多选时一次性建好占位格，
+ *  用户能看见「有几张、到第几张」，而不是一句转圈等到底 */
+const pending = ref<string[]>([])
+/** 已经上传完成的张数，用于算整体进度 */
+const doneCount = ref(0)
+/** 已加载完成的图片 url，做加载占位 */
+const loaded = ref<Record<string, boolean>>({})
+
 onShow(() => {
   store.fetchMe()
 })
@@ -18,28 +26,35 @@ function auditText(s: number) {
 }
 
 async function add() {
-  if (store.photos.length >= MAX) {
+  if (uploading.value) return // 上传尚未走完时再点会起第二个上传循环
+  if (store.photos.length + pending.value.length >= MAX) {
     uni.showToast({ title: `最多 ${MAX} 张`, icon: 'none' })
     return
   }
 
   uni.chooseImage({
-    count: MAX - store.photos.length,
+    count: MAX - store.photos.length - pending.value.length,
     sizeType: ['compressed'],
     success: async (res) => {
       const paths = res.tempFilePaths as string[]
       uploading.value = true
-      uni.showLoading({ title: '上传中' })
+      pending.value = [...paths]
+      doneCount.value = 0
+
       try {
         for (const p of paths) {
           const url = await uploadImage(p, 'photo')
           await userApi.addPhoto(url)
+          // 每传完一张就把它从占位队列里摘掉，进度肉眼可见
+          pending.value = pending.value.filter((x) => x !== p)
+          doneCount.value++
         }
         await store.fetchMe()
       } catch {
         // 已提示
       } finally {
-        uni.hideLoading()
+        pending.value = []
+        doneCount.value = 0
         uploading.value = false
       }
     },
@@ -75,15 +90,43 @@ function preview(i: number) {
     <view class="tip">
       上传真实生活照更容易获得回应。所有照片需经人工审核后才会展示给他人。
     </view>
+    <view v-if="!store.isVip && store.photos.length > store.freePhotoLimit" class="tip tip-lock">
+      前 {{ store.freePhotoLimit }} 张对所有人可见，第 {{ store.freePhotoLimit + 1 }} 张起仅对已解锁的用户展示，其余人看到的是锁定状态。
+    </view>
+
+    <!-- 上传进度：多张时给出「第几张 / 共几张」 -->
+    <view v-if="pending.length" class="progress">
+      <view class="progress-bar" :style="{ width: (doneCount / (doneCount + pending.length)) * 100 + '%' }"></view>
+      <text class="progress-text">正在上传 {{ doneCount + 1 }}/{{ doneCount + pending.length }}</text>
+    </view>
 
     <view class="grid">
-      <view v-for="(p, i) in store.photos" :key="p.id" class="item">
-        <image :src="p.url" class="img" mode="aspectFill" @click="preview(i)" />
+      <view
+        v-for="(p, i) in store.photos"
+        :key="p.id"
+        class="item photo"
+        :class="{ ready: loaded[p.url] }"
+      >
+        <image
+          :src="p.url"
+          class="img"
+          mode="aspectFill"
+          @click="preview(i)"
+          @load="loaded[p.url] = true"
+        />
         <view v-if="p.audit_status !== 1" class="mask">{{ auditText(p.audit_status) }}</view>
         <view class="del" @click="remove(p.id)">×</view>
       </view>
 
-      <view v-if="store.photos.length < MAX" class="item add" @click="add">
+      <!-- 上传中的占位格：先用本地图铺底 + 半透明遮罩，传完自然替换成正式图 -->
+      <view v-for="(path, idx) in pending" :key="'p' + idx" class="item uploading-tile">
+        <image :src="path" class="img pending-img" mode="aspectFill" />
+        <view class="tile-veil">
+          <view class="spinner"></view>
+        </view>
+      </view>
+
+      <view v-if="store.photos.length + pending.length < MAX" class="item add" @click="add">
         <text class="plus">＋</text>
         <text class="add-text">添加照片</text>
       </view>
@@ -105,6 +148,48 @@ function preview(i: number) {
   padding: 0 8rpx 24rpx;
 }
 
+/* 照片分层说明。用浅色底强调一下，避免和上一句连成一片被略过 */
+.tip-lock {
+  margin: -10rpx 8rpx 24rpx;
+  padding: 18rpx 20rpx;
+  border-radius: $radius-sm;
+  background: $bg-subtle;
+  color: $text-placeholder;
+}
+
+/* ---- 上传进度条 ---- */
+.progress {
+  position: relative;
+  height: 56rpx;
+  margin: 0 8rpx 24rpx;
+  border-radius: $radius-sm;
+  background: $bg-subtle;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.progress-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  /* 起步阶段进度条宽度接近 0，给个下限让它始终可见，
+     否则用户看不出「到底有没有在动」 */
+  min-width: 8%;
+  background: $brand-light;
+  transition: width 320ms cubic-bezier(0.22, 0.8, 0.3, 1);
+}
+
+.progress-text {
+  position: relative;
+  width: 100%;
+  text-align: center;
+  font-size: $font-micro;
+  color: $brand;
+  font-variant-numeric: tabular-nums;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -121,9 +206,70 @@ function preview(i: number) {
   border: 1rpx solid $border;
 }
 
+/* 图片未加载完前先露出底色，避免白块闪一下 */
+.photo {
+  background: $bg-subtle;
+
+  .img {
+    opacity: 0;
+    transition: opacity 320ms ease;
+  }
+
+  &.ready .img {
+    opacity: 1;
+  }
+}
+
 .img {
   width: 100%;
   height: 100%;
+}
+
+/* ---- 上传中的占位格 ---- */
+.uploading-tile {
+  background: $bg-subtle;
+  animation: tile-in 300ms cubic-bezier(0.34, 1.4, 0.5, 1) both;
+}
+
+.pending-img {
+  filter: blur(6rpx) saturate(0.7);
+  transform: scale(1.06); /* 模糊后边缘会露白，放大一点盖住 */
+}
+
+.tile-veil {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(2rpx);
+}
+
+.spinner {
+  width: 46rpx;
+  height: 46rpx;
+  border-radius: 50%;
+  border: 4rpx solid rgba(150, 62, 88, 0.22);
+  border-top-color: $brand;
+  animation: spin 720ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes tile-in {
+  from {
+    transform: scale(0.86);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .mask {

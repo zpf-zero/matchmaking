@@ -119,10 +119,28 @@ func AdminUnban(c *gin.Context) {
 	response.OK(c, nil)
 }
 
+// AdminSetRole 任命/撤销管理角色
+// POST /api/v1/admin/user/:id/role   （仅超级管理员）
+func AdminSetRole(c *gin.Context) {
+	id, ok := pathID(c, "id")
+	if !ok {
+		return
+	}
+	var req dto.SetRoleReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamError(c, "参数错误")
+		return
+	}
+	if err := service.SetRole(middleware.CurrentUser(c), id, req.Role); err != nil {
+		fail(c, err)
+		return
+	}
+	response.OK(c, nil)
+}
+
 // AdminReportList 举报列表
 // GET /api/v1/admin/report/list?status=0
-func AdminReportList(c *gin.Context) {
-	var page dto.PageQuery
+func AdminReportList(c *gin.Context) {	var page dto.PageQuery
 	_ = c.ShouldBindQuery(&page)
 
 	status := -1

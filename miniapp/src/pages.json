@@ -56,6 +56,12 @@
       }
     },
     {
+      "path": "pages/user/three-view",
+      "style": {
+        "navigationBarTitleText": "三观问答"
+      }
+    },
+    {
       "path": "pages/chat/index",
       "style": {
         "navigationBarTitleText": "聊天"
@@ -77,6 +83,20 @@
       "path": "pages/setting/blacklist",
       "style": {
         "navigationBarTitleText": "黑名单"
+      }
+    },
+    {
+      "path": "pages/invite/index",
+      "style": {
+        "navigationBarTitleText": "邀请有礼",
+        "enableShareAppMessage": true,
+        "enableShareTimeline": false
+      }
+    },
+    {
+      "path": "pages/invite/rules",
+      "style": {
+        "navigationBarTitleText": "活动规则"
       }
     },
     {
@@ -123,40 +143,43 @@
     }
   ],
   "globalStyle": {
-    "navigationBarTextStyle": "black",
+    "navigationBarTextStyle": "@navTxtStyle",
     "navigationBarTitleText": "缘来婚恋",
-    "navigationBarBackgroundColor": "#FCFAF9",
-    "backgroundColor": "#F4F1F2"
+    "navigationBarBackgroundColor": "@navBgColor",
+    "backgroundColor": "@bgColor"
   },
+  "darkmode": true,
+  "themeLocation": "theme.json",
+  "//": "darkmode + themeLocation 让导航栏和 tabBar 跟随系统深浅色。它们是原生控件，拿不到 App.vue 的 CSS 变量，只能走这套主题机制（微信基础库 2.11+）。不配的话深色模式下内容区变暗、底部导航条还是白的。",
   "tabBar": {
-    "color": "#6B6661",
-    "selectedColor": "#963E58",
-    "backgroundColor": "#FCFAF9",
-    "borderStyle": "white",
+    "color": "@tabColor",
+    "selectedColor": "@tabSelectedColor",
+    "backgroundColor": "@tabBg",
+    "borderStyle": "@tabBorderStyle",
     "list": [
       {
         "pagePath": "pages/index/index",
         "text": "推荐",
-        "iconPath": "static/tabbar/home.png",
-        "selectedIconPath": "static/tabbar/home-active.png"
+        "iconPath": "@tabHome",
+        "selectedIconPath": "@tabHomeActive"
       },
       {
         "pagePath": "pages/search/index",
         "text": "筛选",
-        "iconPath": "static/tabbar/search.png",
-        "selectedIconPath": "static/tabbar/search-active.png"
+        "iconPath": "@tabSearch",
+        "selectedIconPath": "@tabSearchActive"
       },
       {
         "pagePath": "pages/message/index",
         "text": "消息",
-        "iconPath": "static/tabbar/message.png",
-        "selectedIconPath": "static/tabbar/message-active.png"
+        "iconPath": "@tabMessage",
+        "selectedIconPath": "@tabMessageActive"
       },
       {
         "pagePath": "pages/mine/index",
         "text": "我的",
-        "iconPath": "static/tabbar/mine.png",
-        "selectedIconPath": "static/tabbar/mine-active.png"
+        "iconPath": "@tabMine",
+        "selectedIconPath": "@tabMineActive"
       }
     ]
   }

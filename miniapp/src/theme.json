@@ -1,0 +1,36 @@
+{
+  "light": {
+    "navBgColor": "#FCFAF9",
+    "navTxtStyle": "black",
+    "bgColor": "#F4F1F2",
+    "tabBg": "#FCFAF9",
+    "tabColor": "#6B6661",
+    "tabSelectedColor": "#963E58",
+    "tabBorderStyle": "white",
+    "tabHome": "static/tabbar/home.png",
+    "tabHomeActive": "static/tabbar/home-active.png",
+    "tabSearch": "static/tabbar/search.png",
+    "tabSearchActive": "static/tabbar/search-active.png",
+    "tabMessage": "static/tabbar/message.png",
+    "tabMessageActive": "static/tabbar/message-active.png",
+    "tabMine": "static/tabbar/mine.png",
+    "tabMineActive": "static/tabbar/mine-active.png"
+  },
+  "dark": {
+    "navBgColor": "#211F20",
+    "navTxtStyle": "white",
+    "bgColor": "#191718",
+    "tabBg": "#211F20",
+    "tabColor": "#B7ACB0",
+    "tabSelectedColor": "#DF8AA3",
+    "tabBorderStyle": "black",
+    "tabHome": "static/tabbar-dark/home.png",
+    "tabHomeActive": "static/tabbar-dark/home-active.png",
+    "tabSearch": "static/tabbar-dark/search.png",
+    "tabSearchActive": "static/tabbar-dark/search-active.png",
+    "tabMessage": "static/tabbar-dark/message.png",
+    "tabMessageActive": "static/tabbar-dark/message-active.png",
+    "tabMine": "static/tabbar-dark/mine.png",
+    "tabMineActive": "static/tabbar-dark/mine-active.png"
+  }
+}

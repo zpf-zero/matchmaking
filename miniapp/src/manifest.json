@@ -1,4 +1,5 @@
 {
+  "//": "【待申请】AppID 见 docs/07-待申请事项清单.md 第 4 项；隐私保护指引见第 6 项。注意：本文件 mp-weixin / h5 段落内不可写 // 注释键，构建时会原样灌进产物 app.json 变成非法字段。",
   "name": "缘来婚恋",
   "appid": "",
   "description": "严肃婚恋交友小程序",
@@ -13,6 +14,8 @@
   "quickapp": {},
   "mp-weixin": {
     "appid": "",
+    "darkmode": true,
+    "themeLocation": "theme.json",
     "setting": {
       "urlCheck": false,
       "es6": true,
@@ -25,6 +28,8 @@
     "requiredPrivateInfos": []
   },
   "h5": {
+    "darkmode": true,
+    "themeLocation": "theme.json",
     "router": {
       "mode": "hash"
     }

@@ -11,14 +11,21 @@ mysql:
   database: marry_link_dev
 
 jwt:
+  # 【待配置】上线前必须更换！当前值是从开发配置复制来的默认值，泄露可伪造 token
+  #   —— docs/07-待申请事项清单.md 第 11 项
   secret: "hunjie-dev-secret-please-change-in-production"
   expire_days: 7
 
 wechat:
+  # 【待申请】AppID / AppSecret —— docs/07-待申请事项清单.md 第 4 项
+  #   上线（提审）前必须：填下面两行 + mock 改 false
   mock: true               # ← 拿到 AppID/AppSecret 后改成 false
   app_id: ""
   app_secret: ""
 
+# 【待申请】域名 + ICP 备案 + HTTPS —— docs/07-待申请事项清单.md 第 3 项
+#   微信要求所有网络请求走 HTTPS 且域名已备案。当前是公网 IP + HTTP，仅够开发调试。
+#   备案完成后把下面的 base_url 换成 https://<你的域名>/uploads
 upload:
   dir: "/data/matchmaking/server/uploads"
   base_url: "http://81.70.160.36/uploads"
@@ -27,5 +34,7 @@ upload:
 admin:
   # 白名单内的 openid 登录时自动置为超级管理员（role=4）
   # mock 模式下，openid 就是前端传的 code
+  # 首次登录会自动建号、提权为超管，并把「待完善」状态扶正为正常，直接进后台
   super_admin_openids:
+    - "admin"
     - "mock_admin"

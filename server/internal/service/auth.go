@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -56,9 +57,37 @@ func WxLogin(code string) (*dto.WxLoginResp, error) {
 		}
 	}
 
+	// 白名单账号首次登录时是刚建的空白号，没有昵称头像。
+	// 如果放任不管，工作台和「进入用户端」都会显示空名字，很难看也不好认。
+	// 只在昵称确实为空时补一个，不覆盖用户自己改过的名字。
+	if u.Role > model.RoleUser && strings.TrimSpace(u.Nickname) == "" {
+		nick := "管理员"
+		if err := db.DB.Model(&u).Update("nickname", nick).Error; err != nil {
+			logger.Errorf("运营号补默认昵称失败 uid=%d: %v", u.ID, err)
+		} else {
+			u.Nickname = nick
+		}
+	}
+
 	now := time.Now()
 	db.DB.Model(&u).UpdateColumn("last_active_at", now)
 	u.LastActiveAt = &now
+
+	// 管理员/审核员不需要走「填资料 → 审核」这条普通用户链路：
+	// 他们登录只为进后台，若仍按 status==0 要求填择偶资料，会把人卡在向导里。
+	// 这里顺带把被白名单提权、但状态还没扶正的运营号扶正，避免：
+	//   ① 前端登录后被 profile/setup 守卫拦截；
+	//   ② 出现在待审队列里被自己审；
+	//   ③ 被 SetRole 提权时停在「待审核」，而队列又排除运营号 —— 永远出不来。
+	// 正常(2) 和 已封禁(4) 不动：前者本就正确，后者要管理员手动解封。
+	if u.Role > model.RoleUser && u.Status != model.StatusNormal && u.Status != model.StatusBanned {
+		if err := db.DB.Model(&u).Update("status", model.StatusNormal).Error; err != nil {
+			logger.Errorf("管理员账号状态扶正失败 uid=%d: %v", u.ID, err)
+		} else {
+			logger.Infof("管理员账号状态扶正为正常: uid=%d role=%d 原status=%d", u.ID, u.Role, u.Status)
+			u.Status = model.StatusNormal
+		}
+	}
 
 	token, err := jwt.Generate(u.ID, u.Role)
 	if err != nil {
@@ -70,7 +99,7 @@ func WxLogin(code string) (*dto.WxLoginResp, error) {
 		User:        &u,
 		Status:      u.Status,
 		Role:        u.Role,
-		NeedProfile: u.Status == model.StatusIncomplete,
+		NeedProfile: u.Role == model.RoleUser && u.Status == model.StatusIncomplete,
 	}, nil
 }
 
@@ -96,6 +125,18 @@ func BindPhone(u *model.User, req dto.BindPhoneReq) (string, error) {
 
 	if !phonePattern.MatchString(phone) {
 		return "", Biz("手机号格式不正确")
+	}
+	// 手机号是防「多账号互拉刷邀请」的底层身份锚点，先做应用层查重。
+	// 不直接加 UNIQUE 索引：MySQL 5.6 没有部分索引，phone 又是 NOT NULL DEFAULT ''，
+	// 多个空串会互相冲突；等历史数据清洗干净后再考虑改为可空列 + 唯一索引
+	var dup int64
+	if err := db.DB.Model(&model.User{}).
+		Where("phone = ? AND id <> ?", phone, u.ID).
+		Count(&dup).Error; err != nil {
+		return "", err
+	}
+	if dup > 0 {
+		return "", Biz("该手机号已绑定其他账号，请更换手机号")
 	}
 	if err := db.DB.Model(u).Update("phone", phone).Error; err != nil {
 		return "", fmt.Errorf("保存手机号失败: %w", err)

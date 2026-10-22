@@ -19,6 +19,7 @@ type LikeResult struct {
 }
 
 // Like 喜欢某人。互相喜欢即配对，直接创建会话
+// 操作者自身的状态门槛由路由层的 RequireActive 统一把关
 func Like(me *model.User, toID uint64) (*LikeResult, error) {
 	target, err := checkTarget(me, toID)
 	if err != nil {
@@ -58,6 +59,7 @@ func Like(me *model.User, toID uint64) (*LikeResult, error) {
 }
 
 // Pass 不喜欢。之后不再出现在推荐流里
+// 操作者自身的状态门槛由路由层的 RequireActive 统一把关
 func Pass(me *model.User, toID uint64) error {
 	if toID == me.ID {
 		return Biz("不能对自己操作")
@@ -90,9 +92,67 @@ func ListMyLikes(me *model.User, page dto.PageQuery) ([]dto.UserCard, int64, err
 	return listByInteraction(me, page, model.InteractionLike, "from_user_id", "to_user_id")
 }
 
-// ListViewedMe 谁看过我
-func ListViewedMe(me *model.User, page dto.PageQuery) ([]dto.UserCard, int64, error) {
-	return listByInteraction(me, page, model.InteractionView, "to_user_id", "from_user_id")
+// ViewedMeLimit 免费用户可见的「谁看过我」条数。
+// 权益点设计沿用竞品规律：把「别人对我的行为」做成可售卖的信息可见性
+// （珍爱/世纪佳缘的「谁看过我」都是会员权益），成本为零、用户感知强烈。
+// 这里刻意只锁「看更多」，不锁任何功能入口 —— 免费用户依然能正常浏览、喜欢、聊天。
+const ViewedMeLimit = 3
+
+// ViewedMeResp 「谁看过我」列表。非权益用户只返回前若干条
+type ViewedMeResp struct {
+	List      []dto.UserCard `json:"list"`
+	Total     int64          `json:"total"`    // 实际看过我的人数
+	Locked    int64          `json:"locked"`   // 被锁住、需要权益才能看的人数
+	Unlocked  bool           `json:"unlocked"` // 我是否已解锁完整资料
+	FreeLimit int            `json:"free_limit"`
+}
+
+// ListViewedMe 谁看过我。非权益用户只返回最近若干条，其余需通过邀请获得权益后解锁
+func ListViewedMe(me *model.User, page dto.PageQuery) (*ViewedMeResp, error) {
+	page.Normalize()
+
+	vip := me.HasVip()
+
+	// 总人数与列表口径必须一致：都基于 baseQuery 的可见性规则
+	// （对方已封禁/资料下架/拉黑后就不该再计入，否则会出现「锁了但解不开」的幻影）
+	sub := db.DB.Table("interaction").Select("from_user_id").
+		Where("to_user_id = ? AND type = ?", me.ID, model.InteractionView)
+
+	base := baseQuery(me).Where("u.id IN (?)", sub)
+
+	var total int64
+	if err := base.Session(&gorm.Session{}).Count(&total).Error; err != nil {
+		return nil, err
+	}
+	limit := page.PageSize
+	locked := int64(0)
+	if !vip {
+		// 免费用户：只看第一页的前 N 条。翻页一律返回空，避免绕过限制
+		if page.Page > 1 {
+			return &ViewedMeResp{
+				List: []dto.UserCard{}, Total: total,
+				Locked: maxInt64(total-ViewedMeLimit, 0), Unlocked: false, FreeLimit: ViewedMeLimit,
+			}, nil
+		}
+		limit = ViewedMeLimit
+		locked = maxInt64(total-ViewedMeLimit, 0)
+	}
+
+	cards, _, err := runCardQuery(me, base, dto.PageQuery{Page: page.Page, PageSize: limit})
+	if err != nil {
+		return nil, err
+	}
+	return &ViewedMeResp{
+		List: cards, Total: total, Locked: locked,
+		Unlocked: vip, FreeLimit: ViewedMeLimit,
+	}, nil
+}
+
+func maxInt64(a, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // listByInteraction 按互动记录反查用户列表。

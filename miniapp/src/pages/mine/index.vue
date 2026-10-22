@@ -142,7 +142,27 @@ function go(url: string) {
           <text class="mi-label">我的相册</text>
           <text class="mi-note">展示真实的生活状态</text>
         </view>
-        <text class="mi-extra">{{ store.photos.length }}/9</text>
+        <text class="mi-extra">{{ store.photos.length }}/{{ store.maxPhotoNum }}</text>
+      </view>
+      <!-- 三观问答：答题免费，是提高资料质量的核心抓手。
+           放在「我的」而不是藏进设置里 —— 它是内容入口，不是配置项 -->
+      <view class="menu-item" @click="go('/pages/user/three-view')">
+        <view class="mi-copy">
+          <text class="mi-label">三观问答</text>
+          <text class="mi-note">谈谈想法，更容易遇到观念相合的人</text>
+        </view>
+        <text class="mi-action">去回答</text>
+      </view>
+      <view class="menu-item" @click="go('/pages/invite/index')">
+        <view class="mi-copy">
+          <text class="mi-label">邀请有礼</text>
+          <text class="mi-note">
+            {{ store.isVip ? '已解锁完整资料' : '邀请好友，双方永久解锁' }}
+          </text>
+        </view>
+        <!-- 好友过审即结算，但邀请人多半不在场：红点把人带回邀请页看回执 -->
+        <view v-if="store.inviteUnseen > 0" class="todo-badge">{{ store.inviteUnseen }}</view>
+        <text class="mi-action">进入</text>
       </view>
       <view class="menu-item" @click="go('/pages/setting/index')">
         <view class="mi-copy">

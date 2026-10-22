@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onShow, onReachBottom } from '@dcloudio/uni-app'
+import AdminBack from '@/components/AdminBack.vue'
 import { adminApi } from '@/api'
 import { parseTime } from '@/utils/time'
-import { Role, useUserStore } from '@/stores/user'
+import { ReportStatus, Role, useUserStore } from '@/stores/user'
 
 const store = useUserStore()
 const list = ref<any[]>([])
@@ -115,6 +116,7 @@ function goUser(id: number) {
 
 <template>
   <view class="page">
+    <AdminBack />
     <view class="filter">
       <view class="fi" :class="{ on: filterStatus === 0 }" @click="switchFilter(0)">待处理</view>
       <view class="fi" :class="{ on: filterStatus === -1 }" @click="switchFilter(-1)">全部</view>
@@ -159,7 +161,7 @@ function goUser(id: number) {
         处理备注：{{ item.report.handle_remark }}
       </view>
 
-      <view v-if="item.report.status === 0" class="actions">
+      <view v-if="item.report.status === ReportStatus.Pending" class="actions">
         <view class="btn" @click="handle(item)">处理</view>
       </view>
     </view>

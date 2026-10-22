@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { onShow, onUnload } from '@dcloudio/uni-app'
 import UserAvatar from '@/components/UserAvatar.vue'
+import SwipeCell from '@/components/SwipeCell.vue'
 import { chatApi } from '@/api'
 import type { Conversation } from '@/api/types'
 import { useUserStore } from '@/stores/user'
@@ -16,35 +17,104 @@ function onNewMessage() {
   load()
 }
 
-onShow(() => {
+/**
+ * 和首页同一类冷启动时序问题：本页 onShow 早于 onLaunch 里的 `await fetchMe()`，
+ * 那一刻 canInteract 一定是 false。旧写法直接 `return` 并把 loaded 置 true，
+ * 冷启动深链进本页会错误地显示「通过审核后即可聊天」。
+ * 这里改为「等待中不做判断」，等 store 就绪后由 watch 补一次。
+ */
+function ensureLoad() {
   if (!store.canInteract) {
-    loaded.value = true
+    // 用户确实还没通过审核 —— 这才是真的空状态
+    if (store.meLoaded) loaded.value = true
     return
   }
   load()
   store.fetchUnread()
+}
+
+onShow(() => {
+  ensureLoad()
   ws.on('message', onNewMessage)
   ws.on('match', onNewMessage)
 })
+
+// store 就绪后补一次加载（冷启动首次 onShow 时 canInteract 恒为 false）
+watch(
+  () => store.canInteract,
+  (ok) => {
+    if (ok) ensureLoad()
+  },
+)
 
 onUnload(() => {
   ws.off('message', onNewMessage)
   ws.off('match', onNewMessage)
 })
 
+/**
+ * 骨架屏条件：还在等 store 就绪、或已就绪但会话列表还没回来。
+ * 少了前一项，冷启动等待期会先闪一下「没有配对」的空状态；
+ * 但 store 明确失败时不能再转圈，要交给错误态。
+ */
+const showSkeleton = computed(
+  () => !loaded.value && !store.meError && (store.canInteract || !store.meLoaded),
+)
+
+/** 会话列表加载失败：给重试入口，别伪装成「没有新的配对」 */
+const loadFailed = ref(false)
+
 async function load() {
   try {
     list.value = await chatApi.conversations()
+    loadFailed.value = false
   } catch {
-    // 已提示
+    // 已提示。必须标记失败：否则会落到「还没有新的配对」空态，
+    // 把「没加载成功」说成「确实没有」，用户会以为真没人找过自己
+    loadFailed.value = true
   } finally {
     loaded.value = true
   }
 }
 
+async function retryLoad() {
+  loadFailed.value = false
+  loaded.value = false
+  // store 也没拿到就一并补上，否则重试只拉会话列表仍然进不去
+  if (!store.meLoaded) {
+    try {
+      await store.fetchMe()
+    } catch {
+      loaded.value = true
+      return
+    }
+  }
+  await load()
+}
+
 function goChat(c: Conversation) {
   uni.navigateTo({
     url: `/pages/chat/index?id=${c.id}&name=${encodeURIComponent(c.peer_nickname)}&peer=${c.peer_id}`,
+  })
+}
+
+/** 左滑解除配对。危险操作，仍然走二次确认 */
+function onUnmatch(c: Conversation) {
+  uni.showModal({
+    title: '解除配对',
+    content: `解除后你和 ${c.peer_nickname} 将无法继续聊天，需要重新互相喜欢才能配对`,
+    confirmText: '解除',
+    confirmColor: '#a43e3e',
+    success: async (r) => {
+      if (!r.confirm) return
+      try {
+        await chatApi.closeConversation(c.id)
+        list.value = list.value.filter((item) => item.id !== c.id)
+        uni.showToast({ title: '已解除配对', icon: 'none' })
+      } catch {
+        // 已提示
+      }
+    },
   })
 }
 
@@ -96,7 +166,7 @@ function timeText(t: string | null) {
 
     <view class="section-title">我的配对</view>
 
-    <view v-if="!loaded && store.canInteract" class="conversation-skeleton" aria-label="正在加载消息">
+    <view v-if="showSkeleton" class="conversation-skeleton" aria-label="正在加载消息">
       <view v-for="n in 3" :key="n" class="skeleton-conv">
         <view class="skeleton skeleton-conv-avatar"></view>
         <view class="skeleton-conv-copy">
@@ -106,7 +176,14 @@ function timeText(t: string | null) {
       </view>
     </view>
 
-    <view v-if="!store.canInteract" class="empty-state">
+    <view v-else-if="store.meError" class="empty-state">
+      <view class="empty-mark">缘</view>
+      <view class="empty-title">没能加载出来</view>
+      <view class="empty-copy">可能是网络不太稳定，点下面重试一下。</view>
+      <view class="empty-action" @click="retryLoad">重新加载</view>
+    </view>
+
+    <view v-else-if="!store.canInteract" class="empty-state">
       <view class="empty-mark">审</view>
       <view class="empty-title">通过审核后即可聊天</view>
       <view class="empty-copy">你仍然可以先浏览推荐，找到想认真认识的人。</view>
@@ -114,22 +191,40 @@ function timeText(t: string | null) {
     </view>
 
     <view v-else-if="list.length" class="conv-list">
-      <view v-for="c in list" :key="c.id" class="conv" @click="goChat(c)">
-        <view class="avatar-wrap">
-          <UserAvatar :src="c.peer_avatar" :name="c.peer_nickname" :size="96" />
-          <view v-if="c.peer_online" class="online"></view>
-          <view v-if="c.unread" class="unread">{{ c.unread > 99 ? '99+' : c.unread }}</view>
-        </view>
-        <view class="conv-main">
-          <view class="conv-top">
-            <text class="conv-name">{{ c.peer_nickname }}</text>
-            <text class="conv-time">{{ timeText(c.last_message_at) }}</text>
+      <SwipeCell
+        v-for="(c, i) in list"
+        :key="c.id"
+        class="conv-cell"
+        :class="{ first: i === 0, last: i === list.length - 1 }"
+        @action="onUnmatch(c)"
+      >
+        <template #action>解除</template>
+
+        <view class="conv" @click="goChat(c)">
+          <view class="avatar-wrap">
+            <UserAvatar :src="c.peer_avatar" :name="c.peer_nickname" :size="96" />
+            <view v-if="c.peer_online" class="online"></view>
+            <view v-if="c.unread" class="unread">{{ c.unread > 99 ? '99+' : c.unread }}</view>
           </view>
-          <view class="conv-msg">
-            {{ c.last_message || '你们已配对，打个招呼吧' }}
+          <view class="conv-main">
+            <view class="conv-top">
+              <text class="conv-name">{{ c.peer_nickname }}</text>
+              <text class="conv-time">{{ timeText(c.last_message_at) }}</text>
+            </view>
+            <view class="conv-msg">
+              {{ c.last_message || '你们已配对，打个招呼吧' }}
+            </view>
           </view>
         </view>
-      </view>
+      </SwipeCell>
+      <view class="swipe-hint">左滑会话可解除配对</view>
+    </view>
+
+    <view v-else-if="loadFailed" class="empty-state">
+      <view class="empty-mark">缘</view>
+      <view class="empty-title">没能加载出来</view>
+      <view class="empty-copy">可能是网络不太稳定，点下面重试一下。</view>
+      <view class="empty-action" @click="retryLoad">重新加载</view>
     </view>
 
     <view v-else-if="loaded" class="empty-state">
@@ -234,20 +329,38 @@ function timeText(t: string | null) {
   box-shadow: $shadow-card;
 }
 
+/* 单元格自己带背景，圆角和分隔线得由外层容器裁 */
+.conv-cell {
+  border-bottom: 1rpx solid $border;
+
+  &.last {
+    border-bottom: 0;
+  }
+}
+
 .conv {
   display: flex;
   align-items: center;
   padding: 26rpx 24rpx;
-  border-bottom: 1rpx solid $border;
   transition: background-color 180ms ease;
 
   &:active {
     background: $bg-subtle;
   }
+}
 
-  &:last-child {
-    border-bottom: none;
-  }
+/* SwipeCell 的操作区在右侧，底边线要跨过它才连得上 */
+.conv-cell.last .swipe-action,
+.conv-cell.last .conv {
+  border-bottom: 0;
+}
+
+.swipe-hint {
+  text-align: center;
+  font-size: $font-micro;
+  color: $text-placeholder;
+  padding: 20rpx 0 24rpx;
+  border-top: 1rpx solid $border;
 }
 
 .avatar-wrap {

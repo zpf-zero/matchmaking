@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { onShow, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 import UserCardItem from '@/components/UserCardItem.vue'
+import MatchSuccessOverlay from '@/components/MatchSuccessOverlay.vue'
 import { discoverApi, interactionApi } from '@/api'
 import type { UserCard } from '@/api/types'
-import { useUserStore } from '@/stores/user'
+import { Status, useUserStore } from '@/stores/user'
 
 const store = useUserStore()
 const list = ref<UserCard[]>([])
@@ -13,12 +14,66 @@ const total = ref(0)
 const loading = ref(false)
 const finished = ref(false)
 const firstLoaded = ref(false)
+/** 首屏拉取失败：页面要给出重试入口，不能停在白屏 */
+const loadFailed = ref(false)
+
+/** 正在离场的卡片 id：先播收起动画，动画结束再从数据里摘掉 */
+const leavingIds = ref<number[]>([])
+
+/** 配对成功弹层的状态 */
+const matchVisible = ref(false)
+const matchPeer = ref<UserCard | null>(null)
+const matchConvId = ref(0)
+
+/**
+ * 首屏推荐流的加载入口。
+ *
+ * 冷启动时序坑：App.vue 的 onLaunch 里是 `await store.fetchMe()`（异步），
+ * 而本页 onShow 会先一步触发 —— 那一刻 store.user 还是 null、canBrowse 为 false。
+ * 旧写法在这里 `if (!store.canBrowse) return`，等于把首次加载整个吞掉，
+ * 页面就停在「只剩顶部筛选条、下方全空」，切到别的 tab 再回来才恢复
+ * （那时 store 已就绪，onShow 重跑）。
+ *
+ * 所以这里不再「放弃」，只做条件判断；等 store 就绪由下面的 watch 兜底补上。
+ */
+function ensureFirstLoad() {
+  if (firstLoaded.value || loading.value) return
+  if (!store.canBrowse) return
+  load(true)
+}
 
 onShow(() => {
-  if (!store.canBrowse) return
-  if (!firstLoaded.value) load(true)
+  ensureFirstLoad()
   store.fetchUnread()
 })
+
+// 兜底：store 就绪（canBrowse 由 false 变 true）后把首屏加载和红点补上
+watch(
+  () => store.canBrowse,
+  (ok) => {
+    if (!ok) return
+    ensureFirstLoad()
+    store.fetchUnread()
+  },
+)
+
+/** 首屏还在等 store 就绪：这段窗口 `loading` 尚未置位，靠 meLoaded 判断 */
+const bootstrapping = computed(() => !store.meLoaded && !store.meError && !firstLoaded.value)
+
+/** 真正在拉推荐流（含等待 store 的那段）都显示骨架屏，避免先闪一下空白 */
+const showSkeleton = computed(() => bootstrapping.value || (loading.value && !firstLoaded.value))
+
+/** 加载失败后的重试：store 没拿到就先补 store，再拉推荐流 */
+async function retryBootstrap() {
+  if (!store.meLoaded) {
+    try {
+      await store.fetchMe()
+    } catch {
+      return // 仍失败则保持错误态，用户可再点一次
+    }
+  }
+  await load(true)
+}
 
 onPullDownRefresh(async () => {
   await load(true)
@@ -45,12 +100,18 @@ async function load(reset: boolean) {
     finished.value = list.value.length >= res.total
     if (!finished.value) page.value++
     firstLoaded.value = true
+    loadFailed.value = false
   } catch {
-    // request 层已处理
+    // request 层已提示。这里记下失败态：否则首屏拉取失败时
+    // firstLoaded 不置位、loading 已归位，模板各分支全不满足 → 又是白屏
+    loadFailed.value = true
   } finally {
     loading.value = false
   }
 }
+
+/** 卡片收起动画时长，与 UserCardItem 里 card-leave 的 380ms 对齐 */
+const LEAVE_MS = 380
 
 async function handleLike(user: UserCard) {
   if (!store.canInteract) {
@@ -60,31 +121,40 @@ async function handleLike(user: UserCard) {
 
   try {
     const res = await interactionApi.like(user.id)
-    // 先本地移除保证操作即时生效，再拉第一页避免 OFFSET 翻页漏掉一条
-    list.value = list.value.filter((item) => item.id !== user.id)
-    total.value = Math.max(0, total.value - 1)
+
+    // 先让卡片自己收起来，别直接抽走 —— 视觉上有「处理完成」的交代
+    leavingIds.value = [...leavingIds.value, user.id]
+
+    // 必须等收起动画播完再动数据。
+    // 原来的写法是挂上 leaving 后立刻 load(true)，那张卡的 DOM 会被直接卸载，
+    // card-leave 断在半路，用户看到的仍然是「瞬间消失」，动画等于白做。
+    // 这里等动画结束后再重载，其余卡片靠 key 复用 DOM，不会重播入场动画。
+    await new Promise((resolve) => setTimeout(resolve, LEAVE_MS))
+    leavingIds.value = leavingIds.value.filter((id) => id !== user.id)
+
+    // 重载第一页：推荐流是 OFFSET 分页，结果集缩小后不重载会让下一页漏读一条
     await load(true)
 
     if (res.is_match) {
-      uni.showModal({
-        title: '配对成功',
-        content: `你和 ${user.nickname} 互相喜欢，现在可以聊天了`,
-        confirmText: '去聊天',
-        cancelText: '稍后',
-        success: (r) => {
-          if (r.confirm) {
-            uni.navigateTo({
-              url: `/pages/chat/index?id=${res.conversation_id}&name=${encodeURIComponent(user.nickname)}&peer=${user.id}`,
-            })
-          }
-        },
-      })
+      matchPeer.value = user
+      matchConvId.value = res.conversation_id
+      matchVisible.value = true
     } else {
       uni.showToast({ title: '已表达心意', icon: 'none' })
     }
   } catch {
-    // request 层已提示
+    // request 层已提示。失败时上面的 leaving 标记要撤掉，否则卡片卡在收起态
+    leavingIds.value = leavingIds.value.filter((id) => id !== user.id)
   }
+}
+
+function goMatchedChat() {
+  const peer = matchPeer.value
+  matchVisible.value = false
+  if (!peer || !matchConvId.value) return
+  uni.navigateTo({
+    url: `/pages/chat/index?id=${matchConvId.value}&name=${encodeURIComponent(peer.nickname)}&peer=${peer.id}`,
+  })
 }
 
 function goSearch() {
@@ -103,10 +173,10 @@ function goRequirement() {
 <template>
   <view class="page">
     <!-- 审核状态提示 -->
-    <view v-if="store.status === 1" class="notice">
+    <view v-if="store.status === Status.Auditing" class="notice">
       资料审核中，通过后即可与他人互动
     </view>
-    <view v-else-if="store.status === 3" class="notice reject">
+    <view v-else-if="store.status === Status.Rejected" class="notice reject">
       资料未通过：{{ store.profile?.audit_remark }}
       <text class="notice-btn" @click="goEditProfile">去修改</text>
     </view>
@@ -119,7 +189,7 @@ function goRequirement() {
       <text class="filter-action">调整</text>
     </view>
 
-    <view v-if="loading && !firstLoaded" class="skeleton-list" aria-label="正在加载推荐">
+    <view v-if="showSkeleton" class="skeleton-list" aria-label="正在加载推荐">
       <view v-for="n in 3" :key="n" class="skeleton-card">
         <view class="skeleton skeleton-avatar"></view>
         <view class="skeleton-lines">
@@ -132,14 +202,23 @@ function goRequirement() {
 
     <view v-if="list.length" class="list">
       <UserCardItem
-        v-for="u in list"
+        v-for="(u, i) in list"
         :key="u.id"
         :user="u"
+        :index="i"
+        :leaving="leavingIds.includes(u.id)"
         show-like
         @like="handleLike"
       />
       <view v-if="finished" class="end">暂时没有更多了</view>
       <view v-else class="end">加载中…</view>
+    </view>
+
+    <view v-else-if="loadFailed || (store.meError && !firstLoaded)" class="empty">
+      <view class="empty-mark">缘</view>
+      <view class="empty-title">内容没能加载出来</view>
+      <view class="empty-sub">可能是网络不太稳定，点下面重试一下</view>
+      <view class="empty-btn" @click="retryBootstrap">重新加载</view>
     </view>
 
     <view v-else-if="firstLoaded" class="empty">
@@ -148,6 +227,15 @@ function goRequirement() {
       <view class="empty-sub">试试放宽择偶要求，或稍后再来看看</view>
       <view class="empty-btn" @click="goRequirement">调整择偶要求</view>
     </view>
+
+    <MatchSuccessOverlay
+      :visible="matchVisible"
+      :my-avatar="store.user?.avatar"
+      :peer-avatar="matchPeer?.avatar"
+      :peer-name="matchPeer?.nickname || '对方'"
+      @chat="goMatchedChat"
+      @close="matchVisible = false"
+    />
   </view>
 </template>
 

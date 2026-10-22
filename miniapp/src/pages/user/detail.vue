@@ -2,6 +2,9 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import UserAvatar from '@/components/UserAvatar.vue'
+import HeartButton from '@/components/HeartButton.vue'
+import MatchRing from '@/components/MatchRing.vue'
+import MatchSuccessOverlay from '@/components/MatchSuccessOverlay.vue'
 import { commonApi, interactionApi, userApi } from '@/api'
 import type { UserDetail } from '@/api/types'
 import { useUserStore } from '@/stores/user'
@@ -10,6 +13,8 @@ const store = useUserStore()
 const detail = ref<UserDetail | null>(null)
 const loading = ref(true)
 const userId = ref(0)
+const matchVisible = ref(false)
+const heartRef = ref<any>(null)
 
 onLoad(async (q) => {
   userId.value = Number(q?.id || 0)
@@ -18,6 +23,9 @@ onLoad(async (q) => {
     return
   }
   await store.fetchDict()
+  // 题库用于渲染三观对照，必须在 load() 前就位（否则 buildThreeViewRows 拿到空题库）。
+  // 拉失败不阻断资料展示 —— 三观只是其中一块，不该让整页挂掉。
+  await store.fetchThreeViewQuestions().catch(() => {})
   await load()
 })
 
@@ -25,6 +33,7 @@ async function load() {
   loading.value = true
   try {
     detail.value = await userApi.detail(userId.value)
+    buildThreeViewRows()
   } catch {
     setTimeout(() => uni.navigateBack(), 1200)
   } finally {
@@ -51,13 +60,7 @@ async function handleLike() {
     if (res.is_match) {
       d.is_matched = true
       d.conversation_id = res.conversation_id
-      uni.showModal({
-        title: '配对成功',
-        content: `你和 ${d.nickname} 互相喜欢，现在可以聊天了`,
-        confirmText: '去聊天',
-        cancelText: '稍后',
-        success: (r) => r.confirm && goChat(),
-      })
+      matchVisible.value = true
     } else {
       uni.showToast({ title: '已表达心意，等待对方回应', icon: 'none' })
     }
@@ -78,9 +81,44 @@ async function handlePass() {
 
 function goChat() {
   const d = detail.value!
+  matchVisible.value = false
   uni.navigateTo({
     url: `/pages/chat/index?id=${d.conversation_id}&name=${encodeURIComponent(d.nickname)}&peer=${d.id}`,
   })
+}
+
+/** 三观题目的展示行：题目 + 我的选择 + 对方的选择 */
+const threeViewRows = ref<{ title: string; mine: string; theirs: string; same: boolean }[]>([])
+
+/**
+ * 把三观答案摊平成可读的行。
+ *
+ * 只在「我已解锁」时才有对方答案（后端未解锁只回 answered 计数）。
+ * 一致率由后端算好，这里只负责配对文案 —— 前端不重复计算，
+ * 避免两边口径漂移。
+ */
+function buildThreeViewRows() {
+  const tv = detail.value?.three_view
+  const questions = store.threeViewQuestions
+  if (!tv || !tv.answers?.length || !questions.length) {
+    threeViewRows.value = []
+    return
+  }
+  threeViewRows.value = questions.map((q, i) => {
+    const mineIdx = tv.my_answers?.[i] ?? -1
+    const theirsIdx = tv.answers?.[i] ?? -1
+    return {
+      title: q.title,
+      mine: mineIdx >= 0 ? q.options[mineIdx] || '—' : '未作答',
+      theirs: theirsIdx >= 0 ? q.options[theirsIdx] || '—' : '未作答',
+      same: mineIdx >= 0 && theirsIdx >= 0 && mineIdx === theirsIdx,
+    }
+  })
+}
+
+/** 去邀请页解锁更多内容 */
+function goInvite() {
+  uni.navigateTo({ url: '/pages/invite/index' })
 }
 
 function moreActions() {
@@ -135,11 +173,14 @@ function doBlock() {
     <view class="hero">
       <view class="hero-media" @click="previewPhoto(0)">
         <UserAvatar :src="detail.avatar" :name="detail.nickname" fill radius="none" />
+        <view class="hero-veil"></view>
       </view>
       <view class="hero-info">
         <view class="hero-heading">
           <view class="hero-name">{{ detail.nickname }}</view>
-          <view v-if="detail.match_rate > 0" class="match-badge">{{ detail.match_rate }}% 匹配</view>
+          <view v-if="detail.match_rate > 0" class="ring-wrap">
+            <MatchRing :value="detail.match_rate" :size="104" :thickness="8" />
+          </view>
         </view>
         <view class="hero-meta">
           <text>{{ detail.age }} 岁</text>
@@ -184,6 +225,10 @@ function doBlock() {
           <text class="k">职业</text><text class="v">{{ detail.occupation || '未填写' }}</text>
         </view>
         <view class="grid-item">
+          <text class="k">行业</text>
+          <text class="v">{{ detail.industry_text || '未填写' }}</text>
+        </view>
+        <view class="grid-item">
           <text class="k">院校</text><text class="v">{{ detail.school || '未填写' }}</text>
         </view>
         <view class="grid-item">
@@ -203,8 +248,68 @@ function doBlock() {
       <view class="intro">{{ detail.self_intro }}</view>
     </view>
 
+    <!-- 三观问答（L2：答免费，看答案需权益） -->
+    <view v-if="detail.three_view_answered" class="card">
+      <view class="card-title">
+        三观问答
+        <text v-if="detail.three_view?.match_rate != null && detail.three_view_unlocked" class="card-badge">
+          一致率 {{ detail.three_view.match_rate }}%
+        </text>
+      </view>
+
+      <!-- 已解锁：展示逐题对照 -->
+      <template v-if="detail.three_view_unlocked && threeViewRows.length">
+        <view v-for="(row, i) in threeViewRows" :key="i" class="tv-row">
+          <view class="tv-title">
+            <text>{{ row.title }}</text>
+            <text v-if="row.same" class="tv-same">一致</text>
+          </view>
+          <view class="tv-pair">
+            <view class="tv-cell">
+              <text class="tv-who">TA</text>
+              <text class="tv-val">{{ row.theirs }}</text>
+            </view>
+            <view class="tv-cell">
+              <text class="tv-who">你</text>
+              <text class="tv-val">{{ row.mine }}</text>
+            </view>
+          </view>
+        </view>
+      </template>
+
+      <!-- 未解锁：只告诉「答了几题」，不泄露任何选项 -->
+      <view v-else class="tv-locked">
+        <view class="locked-line">
+          TA 已完成 {{ detail.three_view?.answered || detail.three_view?.total || 0 }} 道三观问答
+        </view>
+        <view class="locked-hint">邀请好友通过审核后，可查看彼此的三观选择与一致率</view>
+        <view class="locked-btn" @click="goInvite">去解锁</view>
+      </view>
+    </view>
+
+    <!-- 原生家庭（L2，且需对方主动授权） -->
+    <view v-if="detail.viewed_family && detail.family" class="card">
+      <view class="card-title">原生家庭</view>
+      <view class="grid">
+        <view v-if="detail.family.parent_occ_text" class="grid-item">
+          <text class="k">父母职业</text><text class="v">{{ detail.family.parent_occ_text }}</text>
+        </view>
+        <view v-if="detail.family.atmosphere_text" class="grid-item">
+          <text class="k">家庭氛围</text><text class="v">{{ detail.family.atmosphere_text }}</text>
+        </view>
+        <view v-if="detail.family.only_child_text" class="grid-item">
+          <text class="k">独生子女</text><text class="v">{{ detail.family.only_child_text }}</text>
+        </view>
+        <view v-if="detail.family.city" class="grid-item">
+          <text class="k">家庭所在地</text><text class="v">{{ detail.family.city }}</text>
+        </view>
+      </view>
+      <view v-if="detail.family.note" class="intro family-note">{{ detail.family.note }}</view>
+      <view class="family-tip">由 TA 主动授权公开</view>
+    </view>
+
     <!-- 相册 -->
-    <view v-if="detail.photos?.length" class="card">
+    <view v-if="detail.photo_total > 0" class="card">
       <view class="card-title">相册</view>
       <view class="photos">
         <image
@@ -215,6 +320,13 @@ function doBlock() {
           mode="aspectFill"
           @click="previewPhoto(i)"
         />
+        <!-- 被锁住的照片用占位格表示数量，不泄露图片本身 -->
+        <view v-for="n in detail.locked_photo_count" :key="'lock' + n" class="photo photo-locked">
+          <text class="lock-mark">🔒</text>
+        </view>
+      </view>
+      <view v-if="detail.photos_locked" class="photos-lock-tip" @click="goInvite">
+        还有 {{ detail.locked_photo_count }} 张照片，邀请好友通过审核即可查看 ›
       </view>
     </view>
 
@@ -229,11 +341,26 @@ function doBlock() {
       </template>
       <template v-else>
         <view class="btn-plain half" @click="handlePass">跳过</view>
-        <view class="btn-primary half" :class="{ disabled: detail.is_liked }" @click="handleLike">
-          {{ detail.is_liked ? '已喜欢' : '喜欢 TA' }}
-        </view>
+        <HeartButton
+          class="half"
+          block
+          :size="36"
+          :liked="detail.is_liked"
+          :label="'喜欢 TA'"
+          :active-label="'已喜欢'"
+          @like="handleLike"
+        />
       </template>
     </view>
+
+    <MatchSuccessOverlay
+      :visible="matchVisible"
+      :my-avatar="store.user?.avatar"
+      :peer-avatar="detail.avatar"
+      :peer-name="detail.nickname"
+      @chat="goChat"
+      @close="matchVisible = false"
+    />
   </view>
 
   <view v-else-if="loading" class="detail-skeleton" aria-label="正在加载资料">
@@ -304,9 +431,21 @@ function doBlock() {
 }
 
 .hero-media {
+  position: relative;
   width: 100%;
   height: 600rpx;
   overflow: hidden;
+}
+
+/* 头图底部压一层极淡的纱，让「更多」浮层与照片之间有一道呼吸 */
+.hero-veil {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 180rpx;
+  background: linear-gradient(to top, rgba(34, 31, 32, 0.24), rgba(34, 31, 32, 0));
+  pointer-events: none;
 }
 
 .hero-info {
@@ -315,7 +454,7 @@ function doBlock() {
 
 .hero-heading {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 20rpx;
   margin-bottom: 12rpx;
@@ -326,6 +465,15 @@ function doBlock() {
   font-weight: 600;
   color: $text-main;
   letter-spacing: -1rpx;
+}
+
+/* 匹配度环压在头图下沿，跨越图片与信息区，成为视觉锚点 */
+.ring-wrap {
+  margin-top: -60rpx;
+  padding: 5rpx;
+  border-radius: 50%;
+  background: $bg-card;
+  box-shadow: 0 6rpx 20rpx rgba(78, 43, 55, 0.16);
 }
 
 .hero-meta {
@@ -358,14 +506,6 @@ function doBlock() {
   color: #fffaf8;
   font-size: $font-caption;
   backdrop-filter: blur(8rpx);
-}
-
-.match-badge {
-  color: $brand;
-  font-size: $font-caption;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .hint {
@@ -437,6 +577,147 @@ function doBlock() {
   height: 210rpx;
   border-radius: $radius;
   background: $bg-subtle;
+}
+
+/* 被权益锁住的照片：只占位不显示内容，避免通过缩略图泄露 */
+.photo-locked {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $bg-subtle;
+  border: 1rpx dashed $border;
+
+  .lock-mark {
+    font-size: 40rpx;
+    opacity: 0.42;
+  }
+}
+
+.photos-lock-tip {
+  margin-top: 20rpx;
+  padding: 20rpx 22rpx;
+  border-radius: $radius-sm;
+  background: $brand-light;
+  color: $brand;
+  font-size: $font-caption;
+  line-height: 1.5;
+
+  &:active {
+    opacity: 0.82;
+  }
+}
+
+/* ---- 三观问答 ---- */
+.card-badge {
+  margin-left: 14rpx;
+  padding: 4rpx 14rpx;
+  border-radius: $radius-sm;
+  background: $brand-light;
+  color: $brand;
+  font-size: $font-micro;
+  font-weight: 500;
+}
+
+.tv-row {
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid $border;
+
+  &:last-of-type {
+    border-bottom: none;
+  }
+}
+
+.tv-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 14rpx;
+  font-size: $font-mid;
+  color: $text-main;
+  line-height: 1.5;
+}
+
+.tv-same {
+  flex-shrink: 0;
+  padding: 3rpx 12rpx;
+  border-radius: $radius-sm;
+  background: $success-light;
+  color: $success;
+  font-size: $font-micro;
+}
+
+.tv-pair {
+  display: flex;
+  gap: 14rpx;
+}
+
+.tv-cell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10rpx;
+  padding: 14rpx 16rpx;
+  border-radius: $radius-sm;
+  background: $bg-subtle;
+}
+
+.tv-who {
+  flex-shrink: 0;
+  font-size: $font-micro;
+  color: $text-placeholder;
+  margin-top: 2rpx;
+}
+
+.tv-val {
+  flex: 1;
+  min-width: 0;
+  font-size: $font-caption;
+  color: $text-sub;
+  line-height: 1.5;
+}
+
+.tv-locked {
+  padding: 8rpx 0;
+}
+
+.locked-line {
+  font-size: $font-mid;
+  color: $text-main;
+  margin-bottom: 10rpx;
+}
+
+.locked-hint {
+  font-size: $font-caption;
+  color: $text-placeholder;
+  line-height: 1.6;
+  margin-bottom: 22rpx;
+}
+
+.locked-btn {
+  height: 76rpx;
+  line-height: 76rpx;
+  text-align: center;
+  border-radius: $radius;
+  background: $brand;
+  color: $text-on-accent;
+  font-size: $font-mid;
+  font-weight: 600;
+
+  &:active {
+    opacity: 0.88;
+  }
+}
+
+.family-note {
+  margin-top: 16rpx;
+}
+
+.family-tip {
+  margin-top: 18rpx;
+  font-size: $font-micro;
+  color: $text-placeholder;
 }
 
 .safe-tip {

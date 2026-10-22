@@ -38,12 +38,13 @@ type cardRow struct {
 	HomeProvince  string
 	HomeCity      string
 	SelfIntro     string
+	Industry      int8
 }
 
 const cardFields = `u.id, u.nickname, u.avatar, u.gender, u.last_active_at,
 	p.age, p.height, p.weight, p.education, p.school, p.occupation, p.income_level,
 	p.marital_status, p.has_children, p.house_status, p.car_status,
-	p.province, p.city, p.city_code, p.home_province, p.home_city, p.self_intro`
+	p.province, p.city, p.city_code, p.home_province, p.home_city, p.self_intro, p.industry`
 
 // baseQuery 可见用户的公共过滤条件：
 // 异性、状态正常、资料审核通过、非我本人、排除黑名单双向
@@ -69,7 +70,8 @@ func baseQuery(me *model.User) *gorm.DB {
 	return q
 }
 
-// Recommend 推荐流。用我的择偶要求做过滤，按活跃时间倒序
+// Recommend 推荐流。用我的择偶要求做「硬门槛 + 软容差」过滤（见 applyRequirement 注释），
+// 排序按活跃时间倒序 —— 刻意不用匹配度排序，原因见同一处注释。
 func Recommend(me *model.User, page dto.PageQuery) ([]dto.UserCard, int64, error) {
 	q := baseQuery(me)
 
@@ -124,6 +126,10 @@ func Search(me *model.User, f dto.SearchQuery) ([]dto.UserCard, int64, error) {
 	if f.CarStatus > 0 {
 		q = q.Where("p.car_status = ?", f.CarStatus)
 	}
+	// 行业标签筛选：「同系统」归属感，粗粒度不暴露具体单位
+	if f.Industry > 0 {
+		q = q.Where("p.industry = ?", f.Industry)
+	}
 
 	return runCardQuery(me, q, f.PageQuery)
 }
@@ -143,7 +149,13 @@ func runCardQuery(me *model.User, q *gorm.DB, page dto.PageQuery) ([]dto.UserCar
 	var rows []cardRow
 	if err := q.Session(&gorm.Session{}).
 		Select(cardFields).
-		Order("u.last_active_at DESC, u.id DESC").
+		// 权益用户的曝光加成：把「最近活跃」的主排序让出一档给会员，
+		// 但不做纯会员优先 —— 婚恋场景里对方不再上线，再高的曝光也没有意义。
+		// 用 BOOLEAN 表达式做第一排序键，等价于「会员组内部仍按活跃度排」。
+		//
+		// 权益判定已从 vip_expire_at（到期时间）改为 vip_level（永久等级），
+		// 见 docs/08-权益体系重构方案.md 4.4 与 migrations/003_benefit.sql。
+		Order("(u.vip_level >= 1) DESC, u.last_active_at DESC, u.id DESC").
 		Limit(page.PageSize).Offset(page.Offset()).
 		Scan(&rows).Error; err != nil {
 		return nil, 0, err
@@ -181,6 +193,8 @@ func buildCards(me *model.User, rows []cardRow) []dto.UserCard {
 			MaritalText:   model.DictLabel("marital_status", int(r.MaritalStatus)),
 			City:          r.City,
 			Occupation:    r.Occupation,
+			Industry:      r.Industry,
+			IndustryText:  model.DictLabel("industry", int(r.Industry)),
 			MatchRate:     matchRate(myReq, myProfile, otherReqs[r.ID], rowToProfile(r)),
 			ActiveText:    activeText(r.LastActiveAt),
 		})
@@ -189,6 +203,12 @@ func buildCards(me *model.User, rows []cardRow) []dto.UserCard {
 }
 
 // GetUserDetail 他人资料详情。顺带记录一条浏览
+//
+// 分层可见性（L0/L1/L2）在这里统一收口，见 docs/08-权益体系重构方案.md 4.1。
+// 门禁刻意做在「数据量」上而不是「接口」上：
+// 免费用户依然能正常浏览资料、前 3 张照片、喜欢与聊天，
+// 只是看不到更深入的内容（更多照片 / 三观答案 / 原生家庭）。
+// 这与「谁看过我」的现有设计是同一套原则 —— 锁「更多」，不锁「基础」。
 func GetUserDetail(me *model.User, targetID uint64) (*dto.UserDetailResp, error) {
 	if targetID == me.ID {
 		return nil, Biz("看自己的资料请去「我的」页面")
@@ -204,6 +224,8 @@ func GetUserDetail(me *model.User, targetID uint64) (*dto.UserDetailResp, error)
 	}
 	r := rows[0]
 
+	unlocked := me.HasVip()
+
 	card := buildCards(me, rows)[0]
 	resp := &dto.UserDetailResp{
 		UserCard:     card,
@@ -218,14 +240,51 @@ func GetUserDetail(me *model.User, targetID uint64) (*dto.UserDetailResp, error)
 		SelfIntro:    r.SelfIntro,
 	}
 
-	// 相册只展示审核通过的
+	// 相册只展示审核通过的。免费用户只取前 N 张，
+	// 并单独统计总数与被锁张数，前端据此渲染「还有 N 张」的解锁提示。
 	var photos []model.UserPhoto
 	db.DB.Where("user_id = ? AND audit_status = ?", targetID, model.AuditPassed).
 		Order("sort asc, id asc").Find(&photos)
+
+	resp.PhotoTotal = len(photos)
 	resp.Photos = make([]string, 0, len(photos))
+	shown := 0
 	for _, p := range photos {
+		// 未解锁且已超出免费额度：不返回图片地址，只计数
+		if !unlocked && shown >= model.FreePhotoLimit {
+			resp.LockedPhotoCount++
+			continue
+		}
 		resp.Photos = append(resp.Photos, p.URL)
+		shown++
 	}
+	resp.PhotosLocked = resp.LockedPhotoCount > 0
+
+	// ---- 原生家庭（L2，双重条件：对方授权 + 我已解锁）----
+	// 必须由对方主动开启 FamilyVisible 才展示，这是最敏感的资料块。
+	// 默认公开会劝退大量用户，所以「没填」和「没授权」都返回空。
+	var peerProfile model.UserProfile
+	if err := db.DB.Where("user_id = ?", targetID).First(&peerProfile).Error; err == nil {
+		if unlocked && peerProfile.FamilyVisible == 1 {
+			resp.ViewedFamily = true
+			resp.Family = &dto.FamilyInfo{
+				ParentOcc:     peerProfile.FamilyParentOcc,
+				ParentOccText: model.DictLabel("family_parent_occ", int(peerProfile.FamilyParentOcc)),
+				Atmosphere:    peerProfile.FamilyAtmosphere,
+				AtmosText:     model.DictLabel("family_atmosphere", int(peerProfile.FamilyAtmosphere)),
+				OnlyChild:     peerProfile.FamilyOnlyChild,
+				OnlyChildText: model.DictLabel("family_only_child", int(peerProfile.FamilyOnlyChild)),
+				City:          peerProfile.FamilyCity,
+				Note:          peerProfile.FamilyNote,
+			}
+		}
+	}
+
+	// ---- 三观问答（L2：答免费、看答案需权益）----
+	peerAnswers, _ := loadAnswers(targetID)
+	resp.ThreeViewAnswered = len(peerAnswers) > 0
+	resp.ThreeViewUnlocked = unlocked
+	resp.ThreeView = buildThreeView(me, targetID, unlocked)
 
 	// 与我的关系
 	var acts []model.Interaction
@@ -298,38 +357,81 @@ func conditionScore(req *model.UserRequirement, p *model.UserProfile) float64 {
 	return float64(hit) / float64(total)
 }
 
-// applyRequirement 把择偶要求翻译成 SQL 条件
+// ==================== 推荐流的条件过滤 ====================
+
+/*
+ * 推荐流的过滤策略：硬门槛 + 软容差。
+ *
+ * 为什么不能把 7 项要求全部当硬条件：
+ * 匹配度是「双向命中率」，如果推荐流仍用全部要求做 SQL 硬过滤，那么
+ * 「对方满足我的要求」那一半必然 100%，整体匹配度被锁死在 50%~100%，
+ * 只剩「我满足对方」在起作用 —— 卡片上那个环就几乎不携带信息量了
+ * （实测 7 个候选全打 100%）。
+ *
+ * 反过来也不能完全不过滤、纯按匹配度排序：
+ * 匹配度分辨率很低（7 项条件只产生 4 个档位，7/11 人并列 100%），
+ * 拿它当唯一排序键等于没排序；更糟的是会把「昨天还在线」的人
+ * 排到「70 天没上线」的人后面 —— 婚恋场景里对方不再上线，再高的
+ * 匹配度也不会有人回应。所以排序仍以活跃度为主，这里只负责把
+ * 「明显不合适」的人挡掉、把「有点偏差」的人放进来。
+ *
+ * 于是分两类：
+ *   硬门槛 —— 婚史、城市。这两项在婚恋场景里多是「不可谈」
+ *             （不接受某种婚史、不接受异地），不是能折中的偏好。
+ *   软容差 —— 年龄、身高、学历、收入。用户实际能接受邻近值，
+ *             放宽后既扩大了池子，又让匹配度重新产生区分度。
+ *
+ * 子女（accept_children）也从硬条件改为软容差：它不设时表示「不限」，
+ * 设了 0 表示「希望对方无孩」，但这更像偏好而非底线，交给匹配度去扣分。
+ */
+
+// 软容差常量。改动这些值会直接改变推荐池大小与匹配度分布。
+const (
+	ageTolerance    = 3  // 年龄上下各放宽 3 岁
+	heightTolerance = 5  // 身高上下各放宽 5 cm
+	levelTolerance  = 1  // 学历/收入档位允许低 1 档
+)
+
+// applyRequirement 把择偶要求翻译成推荐流的 SQL 条件（硬门槛 + 软容差）
 func applyRequirement(q *gorm.DB, req *model.UserRequirement) *gorm.DB {
 	if req == nil {
 		return q
 	}
-	if req.AgeMin > 0 {
-		q = q.Where("p.age >= ?", req.AgeMin)
-	}
-	if req.AgeMax > 0 {
-		q = q.Where("p.age <= ?", req.AgeMax)
-	}
-	if req.HeightMin > 0 {
-		q = q.Where("p.height >= ?", req.HeightMin)
-	}
-	if req.HeightMax > 0 {
-		q = q.Where("p.height <= ?", req.HeightMax)
-	}
-	if req.EducationMin > 0 {
-		q = q.Where("p.education >= ?", req.EducationMin)
-	}
-	if req.IncomeMin > 0 {
-		q = q.Where("p.income_level >= ?", req.IncomeMin)
-	}
+
+	// ---------- 硬门槛：婚史、城市 ----------
 	if vals := parseIntList(req.MaritalStatus); len(vals) > 0 {
 		q = q.Where("p.marital_status IN ?", vals)
-	}
-	if req.AcceptChildren == 0 {
-		q = q.Where("p.has_children = 0")
 	}
 	if cityCodes := parseStringList(req.CityCodes); len(cityCodes) > 0 {
 		q = q.Where("p.city_code IN ?", cityCodes)
 	}
+
+	// ---------- 软容差：年龄、身高 ----------
+	if req.AgeMin > 0 {
+		q = q.Where("p.age >= ?", req.AgeMin-ageTolerance)
+	}
+	if req.AgeMax > 0 {
+		q = q.Where("p.age <= ?", req.AgeMax+ageTolerance)
+	}
+	if req.HeightMin > 0 {
+		q = q.Where("p.height >= ?", req.HeightMin-heightTolerance)
+	}
+	if req.HeightMax > 0 {
+		q = q.Where("p.height <= ?", req.HeightMax+heightTolerance)
+	}
+
+	// ---------- 软容差：学历、收入（低 1 档仍放进来，由匹配度扣分） ----------
+	if req.EducationMin > 0 {
+		if floor := int(req.EducationMin) - levelTolerance; floor > 0 {
+			q = q.Where("p.education >= ?", floor)
+		}
+	}
+	if req.IncomeMin > 0 {
+		if floor := int(req.IncomeMin) - levelTolerance; floor > 0 {
+			q = q.Where("p.income_level >= ?", floor)
+		}
+	}
+
 	return q
 }
 

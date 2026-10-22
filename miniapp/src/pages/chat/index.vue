@@ -302,6 +302,9 @@ async function doSend(content: string, msgType: number) {
   sending.value = false
 }
 
+/** 图片消息的加载状态，用来做占位和淡入 */
+const imgLoaded = ref<Record<string, boolean>>({})
+
 function previewImage(url: string) {
   uni.previewImage({ urls: [url] })
 }
@@ -386,14 +389,26 @@ function unmatch() {
           </view>
 
           <view v-else class="msg" :class="{ mine: isMine(m) }">
-            <image
+            <!-- 图片消息：加载前用固定比例占位，避免图片解码完成时整页跳一下。
+                 mode=widthFix 在拿到真实尺寸前高度是 0，历史消息里连着几张图
+                 会出现明显的「撑开」抖动 -->
+            <view
               v-if="m.type === 2"
-              :src="m.content"
-              class="img-msg"
-              mode="widthFix"
-              @click="previewImage(m.content)"
-              @longpress="onLongPressMsg(m)"
-            />
+              class="img-wrap"
+              :class="{ loaded: imgLoaded[m.content] }"
+            >
+              <image
+                :src="m.content"
+                class="img-msg"
+                mode="widthFix"
+                @load="imgLoaded[m.content] = true"
+                @click="previewImage(m.content)"
+                @longpress="onLongPressMsg(m)"
+              />
+              <view v-if="!imgLoaded[m.content]" class="img-placeholder">
+                <view class="img-spinner"></view>
+              </view>
+            </view>
             <view v-else class="bubble" @longpress="onLongPressMsg(m)">
               <text>{{ m.content }}</text>
             </view>
@@ -576,10 +591,58 @@ function unmatch() {
   color: $text-on-accent;
 }
 
+/* 图片消息：占位容器锁住高度，图片加载完再淡入。
+   4:3 是聊天场景里最常见的图片比例，用它做兜底比 0 高度强得多 */
+.img-wrap {
+  position: relative;
+  width: 400rpx;
+  min-height: 300rpx;
+  border-radius: $radius;
+  overflow: hidden;
+  background: $bg-subtle;
+
+  /* 加载完成后占位层消失，容器高度交给图片自己撑 */
+  &.loaded {
+    min-height: 0;
+  }
+
+  &.loaded .img-msg {
+    opacity: 1;
+  }
+}
+
 .img-msg {
+  display: block;
+  width: 100%;
   max-width: 400rpx;
   border-radius: $radius;
   background: $bg-card;
+  opacity: 0;
+  transition: opacity 260ms ease;
+}
+
+.img-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $bg-subtle;
+}
+
+.img-spinner {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  border: 4rpx solid rgba(150, 62, 88, 0.2);
+  border-top-color: $brand;
+  animation: img-spin 720ms linear infinite;
+}
+
+@keyframes img-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .msg-meta {

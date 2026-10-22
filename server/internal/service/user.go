@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -13,7 +14,15 @@ import (
 	"hunjie/internal/pkg/wechat"
 )
 
-const maxPhotoNum = 9
+// MaxPhotoNum 相册上限。
+//
+// 从 6 提到 9 是权益分层的配套改动：前 3 张免费可见、第 4 张起为权益内容，
+// 若上限仍是 6，权益用户也只能多看 3 张，锁的意义被削弱
+// （见 docs/08-权益体系重构方案.md 4.2③）。
+const MaxPhotoNum = 9
+
+// maxPhotoNum 兼容旧引用，值同 MaxPhotoNum
+const maxPhotoNum = MaxPhotoNum
 
 // GetMe 我的完整信息
 func GetMe(u *model.User) (*dto.MeResp, error) {
@@ -38,6 +47,17 @@ func GetMe(u *model.User) (*dto.MeResp, error) {
 		return nil, err
 	}
 	resp.Photos = photos
+
+	// 已结算未查看的邀请数：「我的」页据此给「邀请有礼」挂红点。
+	// 结算发生在对方审核通过的那一刻，邀请人多半不在场，必须有东西把他唤回来
+	var inviteUnseen int64
+	if err := db.DB.Model(&model.InviteRelation{}).
+		Where("inviter_id = ? AND status = ? AND inviter_seen = ?",
+			u.ID, model.InviteSettled, false).
+		Count(&inviteUnseen).Error; err != nil {
+		return nil, err
+	}
+	resp.InviteUnseen = inviteUnseen
 
 	return resp, nil
 }
@@ -125,6 +145,26 @@ func SaveProfile(u *model.User, req dto.SaveProfileReq) error {
 		p.HomeProvince = req.HomeProvince
 		p.HomeCity = req.HomeCity
 		p.SelfIntro = req.SelfIntro
+		p.Industry = req.Industry
+
+		// ---- 原生家庭 ----
+		// 只存用户填了的内容。若用户没填任何一项，即便传了 visible=1 也不展示，
+		// 避免出现「已授权可见但内容全空」的尴尬状态。
+		p.FamilyParentOcc = req.FamilyParentOcc
+		p.FamilyAtmosphere = req.FamilyAtmosphere
+		p.FamilyOnlyChild = req.FamilyOnlyChild
+		p.FamilyCity = strings.TrimSpace(req.FamilyCity)
+		p.FamilyNote = strings.TrimSpace(req.FamilyNote)
+		if len([]rune(p.FamilyNote)) > 100 {
+			return Biz("原生家庭补充说明不能超过 100 字")
+		}
+		// 授权开关：只有真正填了内容才允许置 1
+		if req.FamilyVisible == 1 && hasFamilyContent(&p) {
+			p.FamilyVisible = 1
+		} else {
+			p.FamilyVisible = 0
+		}
+
 		p.CompleteRate = calcCompleteRate(u, &p, int(photoCount))
 
 		// 已通过审核的用户改了资料，重新进复审队列。
@@ -135,10 +175,39 @@ func SaveProfile(u *model.User, req dto.SaveProfileReq) error {
 			p.AuditRemark = ""
 		}
 
+		// 上次被拒的用户改完资料，重新排队等审。
+		// 否则用户按「未通过原因」改好了，状态却还钉在「未通过」，
+		// 队列也进不去 —— 等于被永久拒之门外。
+		reAudit := p.AuditStatus == model.AuditRejected
+		if reAudit {
+			p.AuditStatus = model.AuditPending
+			p.AuditRemark = ""
+		}
+
 		if isNew {
 			return tx.Create(&p).Error
 		}
-		return tx.Save(&p).Error
+		if err := tx.Save(&p).Error; err != nil {
+			return err
+		}
+		// 相册跟着重新排队：上次被判「未通过」的照片若留在原状态，
+		// 这轮审核只挑 AuditPending 的改，它们就永远过不了、也永远不展示。
+		if reAudit {
+			if err := tx.Model(&model.UserPhoto{}).
+				Where("user_id = ? AND audit_status = ?", u.ID, model.AuditRejected).
+				Update("audit_status", model.AuditPending).Error; err != nil {
+				return err
+			}
+		}
+		// 被拒用户本次修改视为重新提交，状态回到「待审核」。
+		// 封禁用户不动状态，需管理员先解封。
+		if reAudit && u.Status == model.StatusRejected {
+			if err := tx.Model(u).Update("status", model.StatusAuditing).Error; err != nil {
+				return err
+			}
+			u.Status = model.StatusAuditing
+		}
+		return nil
 	})
 }
 
@@ -203,6 +272,13 @@ func SubmitAudit(u *model.User) error {
 			"audit_status": model.AuditPending,
 			"audit_remark": "",
 		}).Error; err != nil {
+			return err
+		}
+		// 相册跟着重新排队：上次被判「未通过」的照片若留在原状态，
+		// 这轮审核只挑 AuditPending 的改，它们就永远过不了、也永远不展示。
+		if err := tx.Model(&model.UserPhoto{}).
+			Where("user_id = ? AND audit_status = ?", u.ID, model.AuditRejected).
+			Update("audit_status", model.AuditPending).Error; err != nil {
 			return err
 		}
 		if err := tx.Model(u).Update("status", model.StatusAuditing).Error; err != nil {
@@ -294,7 +370,9 @@ func calcCompleteRate(u *model.User, p *model.UserProfile, photoCount int) int8 
 		p.SelfIntro != "",
 		// 选填项，填了加分
 		p.Weight > 0, p.School != "", p.HomeProvince != "",
-		photoCount > 0, photoCount >= 3,
+		photoCount > 0, photoCount >= 3, photoCount >= 5,
+		// 行业标签：粗粒度归属感，填了加分，推动资料质量
+		p.Industry > 0,
 	}
 	filled := 0
 	for _, ok := range items {
@@ -303,6 +381,13 @@ func calcCompleteRate(u *model.User, p *model.UserProfile, photoCount int) int8 
 		}
 	}
 	return int8(filled * 100 / len(items))
+}
+
+// hasFamilyContent 原生家庭是否有任一有效内容。
+// 用于防止「授权可见但内容全空」——那不叫公开，叫让人白点一下。
+func hasFamilyContent(p *model.UserProfile) bool {
+	return p.FamilyParentOcc > 0 || p.FamilyAtmosphere > 0 ||
+		p.FamilyOnlyChild > 0 || p.FamilyCity != "" || p.FamilyNote != ""
 }
 
 // checkRequired 返回第一个缺失的必填项名称

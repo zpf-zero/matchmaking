@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { onShow, onReachBottom } from '@dcloudio/uni-app'
+import AdminBack from '@/components/AdminBack.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
 import { adminApi } from '@/api'
 import type { AuditItem } from '@/api/types'
@@ -107,6 +108,7 @@ function calcAge(item: AuditItem) {
 
 <template>
   <view class="page">
+    <AdminBack />
     <view class="head">待审核 {{ total }} 人</view>
 
     <view v-for="item in list" :key="item.user_id" class="card">

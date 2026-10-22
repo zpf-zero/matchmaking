@@ -5,7 +5,18 @@
 ## 0. 一句话
 
 Windows 上 `deploy\build.ps1` 一条命令产出 zip → 传到 Ubuntu → root 执行 `bash deploy.sh`。
-前端是 **H5**（不是小程序），后端是**交叉编译的 linux/amd64 二进制 + nohup 后台进程**（不是 systemd，不是 Docker）。
+后端是**交叉编译的 linux/amd64 二进制 + nohup 后台进程**（不是 systemd，不是 Docker）。
+
+**前端有两个交付目标，别搞混**（这是最容易漏的一处）：
+
+| 目标 | 构建命令 | 产物 | 去向 | 本目录是否管 |
+|---|---|---|---|---|
+| **H5** | `npm run build:h5` | `miniapp/dist/build/h5` | 打进 zip → nginx | ✅ `build.ps1` 自动做 |
+| **微信小程序** | `npm run build:mp-weixin` | `miniapp/dist/build/mp-weixin` | 微信开发者工具导入 → 提审 | ❌ **不在打包范围内，需手动构建** |
+
+> 所以 `build.ps1` **只覆盖 H5**。改了前端且这次要提审小程序，必须**另外**跑一次
+> `npm run build:mp-weixin`（在 `miniapp/` 下），再用微信开发者工具导入 `dist/build/mp-weixin`。
+> 只跑 `build.ps1` 不会更新小程序产物。
 
 ## 1. 环境事实
 
@@ -22,7 +33,7 @@ Windows 上 `deploy\build.ps1` 一条命令产出 zip → 传到 Ubuntu → root
 
 | 改动 | 动作 |
 |---|---|
-| 前端 `miniapp/src/**` | 重跑 `build.ps1`，传包，root 执行 `bash deploy.sh` |
+| 前端 `miniapp/src/**` | ① 重跑 `build.ps1`（H5，传包 + `bash deploy.sh`）② **要提审小程序则另跑 `npm run build:mp-weixin`** |
 | 后端 `server/**` | 重跑 `build.ps1`，传包，root 执行 `bash deploy.sh`（脚本会先停旧进程） |
 | `deploy/template/**` | 重跑 `build.ps1`（模板是打包时才复制进产物的） |
 | `*.prod.yaml` 里的地址/域名 | 改完重跑 `build.ps1`，nginx `server_name` 和数据库里的头像地址会自动跟着变 |
