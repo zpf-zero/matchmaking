@@ -21,6 +21,25 @@ export interface User {
 /** 权益等级常量，与后端 model.VipLevelUnlocked 保持一致 */
 export const VipLevelUnlocked = 1
 
+/** 登录响应。微信登录与手机号验证码登录共用 */
+export interface LoginResp {
+  token: string
+  user: User
+  status: number
+  role: number
+  need_profile: boolean
+}
+
+/** 发送短信验证码的响应 */
+export interface SendSmsCodeResp {
+  /** 验证码有效期（秒） */
+  expires_in: number
+  /** 下次可发送的冷却时间（秒） */
+  resend_in: number
+  /** 仅开发环境 mock 短信时返回，生产环境恒为空 */
+  dev_code?: string
+}
+
 export interface Profile {
   id?: number
   user_id?: number

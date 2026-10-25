@@ -26,6 +26,40 @@ func WxLogin(c *gin.Context) {
 	response.OK(c, resp)
 }
 
+// SendSmsCode 发送 H5 登录验证码
+// POST /api/v1/auth/sms/send
+func SendSmsCode(c *gin.Context) {
+	var req dto.SendSmsCodeReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamError(c, "请填写手机号")
+		return
+	}
+
+	resp, err := service.SendLoginCode(req.Phone, c.ClientIP())
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	response.OK(c, resp)
+}
+
+// PhoneLogin 手机号验证码登录，手机号不存在时自动建号
+// POST /api/v1/auth/sms/login
+func PhoneLogin(c *gin.Context) {
+	var req dto.PhoneLoginReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ParamError(c, "请填写手机号和验证码")
+		return
+	}
+
+	resp, err := service.PhoneLogin(req.Phone, req.Code, c.ClientIP())
+	if err != nil {
+		fail(c, err)
+		return
+	}
+	response.OK(c, resp)
+}
+
 // BindPhone 绑定手机号
 // POST /api/v1/auth/bind-phone
 func BindPhone(c *gin.Context) {

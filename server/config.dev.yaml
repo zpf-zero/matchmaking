@@ -22,6 +22,22 @@ wechat:
   app_id: ""
   app_secret: ""
 
+sms:
+  # H5 手机号验证码登录。开发环境 mock: true —— 验证码走接口 dev_code 回传 +
+  # 服务端日志，不产生真实短信费用。生产环境绝不回传 dev_code。
+  # 真实下发需申请短信签名与模板（docs/07 第 7.1 节），填好四项后 mock 改 false。
+  mock: true
+  provider: "aliyun"
+  access_key_id: ""
+  access_key_secret: ""
+  sign_name: ""            # 短信签名，如「缘来婚恋」
+  template_code: ""        # 模板变量名必须是 code，如 {"code":"123456"}
+  region_id: "cn-hangzhou"
+  code_ttl_seconds: 300
+  resend_seconds: 60
+  daily_limit: 5
+  ip_hourly_limit: 20
+
 upload:
   dir: "./uploads"
   base_url: "http://localhost:8080/uploads"

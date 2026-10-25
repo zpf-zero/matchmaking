@@ -23,6 +23,22 @@ wechat:
   app_id: ""
   app_secret: ""
 
+sms:
+  # 【待申请】短信签名 + 模板 —— docs/07-待申请事项清单.md 第 7.1 节
+  #   H5 手机号登录必须走真实短信通道；未配置前 H5 登录不可用。
+  #   即使 mock 暂为 true，release 模式也只把验证码写服务端日志，绝不经接口回传。
+  mock: true
+  provider: "aliyun"
+  access_key_id: ""
+  access_key_secret: ""
+  sign_name: ""            # 短信签名，如「缘来婚恋」
+  template_code: ""        # 模板变量名必须是 code，如 {"code":"123456"}
+  region_id: "cn-hangzhou"
+  code_ttl_seconds: 300
+  resend_seconds: 60
+  daily_limit: 5
+  ip_hourly_limit: 20
+
 # 【待申请】域名 + ICP 备案 + HTTPS —— docs/07-待申请事项清单.md 第 3 项
 #   微信要求所有网络请求走 HTTPS 且域名已备案。当前是公网 IP + HTTP，仅够开发调试。
 #   备案完成后把下面的 base_url 换成 https://<你的域名>/uploads

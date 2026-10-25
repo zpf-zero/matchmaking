@@ -5,12 +5,14 @@ import type {
   ClientConfig,
   Conversation,
   Dict,
+  LoginResp,
   MeResp,
   Message,
   MyInviteInfo,
   MyThreeViewResp,
   Profile,
   Requirement,
+  SendSmsCodeResp,
   ThreeViewQuestion,
   UserCard,
   UserDetail,
@@ -20,11 +22,13 @@ import type {
 export const authApi = {
   /** mock 模式下 code 直接作为 openid，换不同 code 可模拟多个账号 */
   wxLogin: (code: string) =>
-    http.post<{ token: string; user: any; status: number; role: number; need_profile: boolean }>(
-      '/auth/wx-login',
-      { code },
-      { noAuthRedirect: true }
-    ),
+    http.post<LoginResp>('/auth/wx-login', { code }, { noAuthRedirect: true }),
+  /** H5 手机号登录：发送验证码。开发环境 mock 短信会返回 dev_code */
+  sendSmsCode: (phone: string) =>
+    http.post<SendSmsCodeResp>('/auth/sms/send', { phone }, { silent: true }),
+  /** H5 手机号验证码登录。手机号不存在时后端自动建号 */
+  phoneLogin: (phone: string, code: string) =>
+    http.post<LoginResp>('/auth/sms/login', { phone, code }, { silent: true }),
   bindPhone: (data: { code?: string; phone?: string }) => http.post('/auth/bind-phone', data),
   logout: () => http.post('/auth/logout'),
   deleteAccount: () => http.del('/auth/account'),

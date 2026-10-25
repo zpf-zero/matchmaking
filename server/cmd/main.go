@@ -9,6 +9,7 @@ import (
 	"hunjie/internal/db"
 	"hunjie/internal/pkg/logger"
 	"hunjie/internal/pkg/sensitive"
+	"hunjie/internal/pkg/sms"
 	"hunjie/internal/pkg/wechat"
 	"hunjie/internal/router"
 	"hunjie/internal/service"
@@ -32,6 +33,7 @@ func main() {
 
 	sensitive.Init("configs/sensitive_words.txt")
 	wechat.Init()
+	sms.Init()
 	service.InitWS()
 	service.StartMaintenance()
 

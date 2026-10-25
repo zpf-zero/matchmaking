@@ -1,11 +1,97 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { authApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 
 const store = useUserStore()
 const agreed = ref(false)
 const loading = ref(false)
+
+onLoad(() => {
+  store.fetchConfig()
+})
+
+// #ifdef H5
+/* H5 没有微信授权，手机号 + 验证码就是完整的登录链路 */
+const phone = ref('')
+const smsCode = ref('')
+const sending = ref(false)
+const countdown = ref(0)
+/** 开发环境 mock 短信时由接口回传，点一下即可填入；生产不会返回 */
+const devCode = ref('')
+const errorMsg = ref('')
+let timer: ReturnType<typeof setInterval> | null = null
+
+const phoneOk = computed(() => /^1[3-9]\d{9}$/.test(phone.value))
+const canSend = computed(() => phoneOk.value && !sending.value && countdown.value <= 0)
+const canSubmit = computed(() => phoneOk.value && /^\d{6}$/.test(smsCode.value) && !loading.value)
+
+function clearTimer() {
+  if (timer) {
+    clearInterval(timer)
+    timer = null
+  }
+}
+
+onUnmounted(clearTimer)
+
+function startCountdown(seconds: number) {
+  countdown.value = seconds
+  clearTimer()
+  timer = setInterval(() => {
+    countdown.value -= 1
+    if (countdown.value <= 0) clearTimer()
+  }, 1000)
+}
+
+async function sendCode() {
+  if (!agreed.value) {
+    uni.showToast({ title: '请先阅读并同意协议', icon: 'none' })
+    return
+  }
+  if (!phoneOk.value) {
+    errorMsg.value = '请输入正确的 11 位手机号'
+    return
+  }
+  if (!canSend.value) return
+
+  sending.value = true
+  errorMsg.value = ''
+  try {
+    const res = await authApi.sendSmsCode(phone.value)
+    devCode.value = res.dev_code || ''
+    startCountdown(res.resend_in || 60)
+    uni.showToast({ title: '验证码已发送', icon: 'none' })
+  } catch (e: any) {
+    errorMsg.value = e?.message || '发送失败，请稍后重试'
+  } finally {
+    sending.value = false
+  }
+}
+
+async function handlePhoneLogin() {
+  if (!phoneOk.value) {
+    errorMsg.value = '请输入正确的 11 位手机号'
+    return
+  }
+  if (!/^\d{6}$/.test(smsCode.value)) {
+    errorMsg.value = '请输入 6 位验证码'
+    return
+  }
+
+  errorMsg.value = ''
+  try {
+    await store.phoneLogin(phone.value, smsCode.value)
+    await store.fetchMe()
+    uni.reLaunch({ url: store.needsProfile ? '/pages/profile/setup' : store.homePath })
+  } catch (e: any) {
+    errorMsg.value = e?.message || '登录失败，请稍后重试'
+  }
+}
+// #endif
+
+// #ifdef MP-WEIXIN
 /** mock 模式下用它当 openid：同一个值就是同一个账号，方便反复测试 */
 const mockCode = ref('test_user_1')
 
@@ -22,18 +108,7 @@ const mockPresets = [
   { code: 'test_user_2', label: '测试小明', note: '正常' },
 ]
 
-onLoad(() => {
-  store.fetchConfig()
-})
-
-async function handleLogin() {
-  if (!agreed.value) {
-    uni.showToast({ title: '请先阅读并同意协议', icon: 'none' })
-    return
-  }
-  if (loading.value) return
-  loading.value = true
-
+async function handleWxLogin() {
   try {
     if (!store.configLoaded || store.configError) await store.fetchConfig()
     if (store.configError) {
@@ -58,8 +133,6 @@ async function handleLogin() {
     }
   } catch {
     // request 层已提示
-  } finally {
-    loading.value = false
   }
 }
 
@@ -71,6 +144,25 @@ function getWxCode(): Promise<string> {
       fail: reject,
     })
   })
+}
+// #endif
+
+async function handleLogin() {
+  if (!agreed.value) {
+    uni.showToast({ title: '请先阅读并同意协议', icon: 'none' })
+    return
+  }
+  if (loading.value) return
+  loading.value = true
+
+  // #ifdef H5
+  await handlePhoneLogin()
+  // #endif
+  // #ifdef MP-WEIXIN
+  await handleWxLogin()
+  // #endif
+
+  loading.value = false
 }
 
 function openAgreement(type: 'user' | 'privacy') {
@@ -96,6 +188,59 @@ function openAgreement(type: 'user' | 'privacy') {
     </view>
 
     <view class="form enter" style="animation-delay: 520ms">
+      <!-- #ifdef H5 -->
+      <view class="auth-head">
+        <text class="auth-title">手机号登录</text>
+        <text class="auth-note">无需密码 · 验证码直达</text>
+      </view>
+
+      <view class="auth-card">
+        <view class="auth-field">
+          <text class="field-label">手机号</text>
+          <text class="dial-code">+86</text>
+          <input
+            v-model="phone"
+            class="auth-input"
+            type="number"
+            maxlength="11"
+            placeholder="请输入手机号"
+            placeholder-class="ph"
+            @input="errorMsg = ''"
+          />
+        </view>
+        <view class="auth-field">
+          <text class="field-label">验证码</text>
+          <input
+            v-model="smsCode"
+            class="auth-input code-input"
+            type="number"
+            maxlength="6"
+            placeholder="6 位验证码"
+            placeholder-class="ph"
+            @input="errorMsg = ''"
+          />
+          <view class="send-code" :class="{ disabled: !canSend }" @click="sendCode">
+            {{ sending ? '发送中' : countdown > 0 ? `${countdown}s` : '获取验证码' }}
+          </view>
+        </view>
+      </view>
+
+      <!-- mock 短信的验证码回显。生产环境接口不返回 dev_code，这一块不会出现 -->
+      <view v-if="devCode" class="dev-code">
+        <text>开发模式验证码</text>
+        <text class="dev-code-value" @click="smsCode = devCode">{{ devCode }}</text>
+        <text class="dev-code-tip">点击填入</text>
+      </view>
+
+      <view v-if="errorMsg" class="form-error">{{ errorMsg }}</view>
+
+      <view class="btn-primary auth-submit" :class="{ disabled: !canSubmit }" @click="handleLogin">
+        {{ loading ? '登录中…' : '登录 / 注册' }}
+      </view>
+      <view class="auth-footnote">未注册的手机号将自动创建账号</view>
+      <!-- #endif -->
+
+      <!-- #ifdef MP-WEIXIN -->
       <view v-if="store.mockMode" class="mock-box">
         <view class="mock-label">开发账号</view>
         <view class="mock-tip">
@@ -142,6 +287,7 @@ function openAgreement(type: 'user' | 'privacy') {
                 : '微信一键登录'
         }}
       </view>
+      <!-- #endif -->
 
       <view class="agreement" @click="agreed = !agreed">
         <view class="checkbox" :class="{ checked: agreed }">
@@ -266,6 +412,177 @@ function openAgreement(type: 'user' | 'privacy') {
 .form {
   margin-bottom: auto;
 }
+
+/* ---------- H5 手机号登录 ---------- */
+
+.auth-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 4rpx;
+  margin-bottom: 18rpx;
+}
+
+.auth-title {
+  font-size: $font-body;
+  font-weight: 600;
+  color: $text-main;
+  letter-spacing: 1rpx;
+}
+
+.auth-note {
+  font-size: $font-micro;
+  color: $text-placeholder;
+  letter-spacing: 0.5rpx;
+}
+
+.auth-card {
+  background: $bg-raised;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
+  padding: 0 28rpx;
+  box-shadow: $shadow-card;
+}
+
+.auth-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 108rpx;
+  border-bottom: 1rpx solid $border;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  /*
+   * 聚焦时标签变色 + 底线自左向右铺开。
+   * 比整框描边克制，也给键盘操作一个明确的落点（仅 H5 使用，小程序端会忽略）
+   */
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1rpx;
+    height: 2rpx;
+    background: $brand;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  &:focus-within {
+    .field-label {
+      color: $brand;
+    }
+
+    &::after {
+      transform: scaleX(1);
+    }
+  }
+}
+
+.field-label {
+  width: 110rpx;
+  flex-shrink: 0;
+  font-size: $font-caption;
+  color: $text-weak;
+  letter-spacing: 1rpx;
+  transition: color 180ms ease;
+}
+
+.dial-code {
+  margin-right: 18rpx;
+  font-size: $font-mid;
+  color: $text-weak;
+  font-variant-numeric: tabular-nums;
+}
+
+.auth-input {
+  flex: 1;
+  min-width: 0;
+  height: 72rpx;
+  font-size: $font-lead;
+  font-weight: 550;
+  color: $text-main;
+}
+
+.code-input {
+  letter-spacing: 6rpx;
+  font-variant-numeric: tabular-nums;
+}
+
+.send-code {
+  flex-shrink: 0;
+  padding: 12rpx 0 12rpx 24rpx;
+  border-left: 1rpx solid $border;
+  font-size: $font-caption;
+  font-weight: 550;
+  color: $brand;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transition: color 180ms ease;
+
+  &.disabled {
+    color: $text-placeholder;
+  }
+
+  &:active {
+    color: $brand-dark;
+  }
+}
+
+.dev-code {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 18rpx;
+  padding: 16rpx 20rpx;
+  border-radius: $radius-sm;
+  background: $warning-light;
+  font-size: $font-micro;
+  color: $warning;
+  line-height: 1.5;
+}
+
+.dev-code-value {
+  padding: 2rpx 10rpx;
+  border-radius: $radius-sm;
+  background: $bg-raised;
+  font-weight: 650;
+  letter-spacing: 3rpx;
+  font-variant-numeric: tabular-nums;
+}
+
+.dev-code-tip {
+  margin-left: auto;
+  color: $text-placeholder;
+}
+
+.form-error {
+  margin-top: 18rpx;
+  padding: 16rpx 20rpx;
+  border-left: 4rpx solid $danger;
+  background: $danger-light;
+  color: $danger;
+  font-size: $font-caption;
+  line-height: 1.6;
+}
+
+.auth-submit {
+  margin-top: 28rpx;
+}
+
+.auth-footnote {
+  margin-top: 18rpx;
+  text-align: center;
+  font-size: $font-micro;
+  color: $text-placeholder;
+  letter-spacing: 0.5rpx;
+}
+
+/* ---------- 小程序开发账号 ---------- */
 
 .mock-box {
   background: $bg-raised;

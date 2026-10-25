@@ -25,6 +25,22 @@ type BindPhoneReq struct {
 	Phone string `json:"phone"` // mock 模式：前端手填
 }
 
+// SendSmsCodeReq H5 手机号登录：发送验证码
+type SendSmsCodeReq struct {
+	Phone string `json:"phone" binding:"required"`
+}
+
+type SendSmsCodeResp struct {
+	ExpiresIn int    `json:"expires_in"`         // 验证码有效期（秒）
+	ResendIn  int    `json:"resend_in"`          // 下次可发送的冷却时间（秒）
+	DevCode   string `json:"dev_code,omitempty"` // 仅开发环境 mock 模式回传
+}
+
+type PhoneLoginReq struct {
+	Phone string `json:"phone" binding:"required"`
+	Code  string `json:"code" binding:"required"`
+}
+
 // ==================== 邀请 ====================
 
 type BindInviteReq struct {

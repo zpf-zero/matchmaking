@@ -119,6 +119,20 @@ const form = reactive({
   family_visible: 0,
 })
 
+/**
+ * 手机号是否锁定。H5 的号码是验证码登录时核验过的，不能在向导里改掉；
+ * 小程序端沿用原逻辑：真实微信模式下已绑定即锁定，mock 模式允许手填修正。
+ */
+const phoneLocked = computed(() => {
+  if (!form.phone) return false
+  // #ifdef H5
+  return true
+  // #endif
+  // #ifdef MP-WEIXIN
+  return canWxAuth.value
+  // #endif
+})
+
 const req = reactive({
   age_min: 22,
   age_max: 40,
@@ -559,7 +573,7 @@ async function jump(n: number) {
           v-model="form.phone"
           type="number"
           maxlength="11"
-          :disabled="canWxAuth && !!form.phone"
+          :disabled="phoneLocked"
           placeholder="用于账号安全，不会公开"
           placeholder-class="ph"
         />

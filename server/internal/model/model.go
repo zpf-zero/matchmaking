@@ -208,6 +208,19 @@ type InviteRelation struct {
 	CreatedAt   time.Time  `json:"created_at"`
 }
 
+// SmsCode 短信验证码。只存哈希不存明文；同一手机号保留多条历史用于限频审计
+type SmsCode struct {
+	ID        uint64     `gorm:"primaryKey" json:"-"`
+	Phone     string     `gorm:"size:20" json:"-"`
+	CodeHash  string     `gorm:"size:64" json:"-"`
+	Scene     string     `gorm:"size:16" json:"-"` // login
+	IP        string     `gorm:"size:64" json:"-"`
+	Attempts  int8       `json:"-"`
+	UsedAt    *time.Time `json:"-"`
+	ExpiresAt time.Time  `json:"-"`
+	CreatedAt time.Time  `json:"-"`
+}
+
 // Report 举报
 type Report struct {
 	ID           uint64    `gorm:"primaryKey" json:"id"`

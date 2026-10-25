@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -14,6 +15,7 @@ type Config struct {
 	MySQL  MySQLConfig  `mapstructure:"mysql"`
 	JWT    JWTConfig    `mapstructure:"jwt"`
 	WeChat WeChatConfig `mapstructure:"wechat"`
+	SMS    SMSConfig    `mapstructure:"sms"`
 	Upload UploadConfig `mapstructure:"upload"`
 	Admin  AdminConfig  `mapstructure:"admin"`
 }
@@ -40,6 +42,53 @@ type WeChatConfig struct {
 	Mock      bool   `mapstructure:"mock"`
 	AppID     string `mapstructure:"app_id"`
 	AppSecret string `mapstructure:"app_secret"`
+}
+
+// SMSConfig 短信验证码通道。H5 手机号登录使用。
+//
+// mock 模式下验证码不真实下发：开发环境由 /auth/sms/send 回传 dev_code，
+// 生产环境（server.mode=release）只写服务端日志，绝不回传 ——
+// 否则等于开放「任意手机号免验证码登录」。
+type SMSConfig struct {
+	Mock            bool   `mapstructure:"mock"`
+	Provider        string `mapstructure:"provider"`
+	AccessKeyID     string `mapstructure:"access_key_id"`
+	AccessKeySecret string `mapstructure:"access_key_secret"`
+	SignName        string `mapstructure:"sign_name"`
+	TemplateCode    string `mapstructure:"template_code"`
+	RegionID        string `mapstructure:"region_id"`
+	CodeTTLSeconds  int    `mapstructure:"code_ttl_seconds"`
+	ResendSeconds   int    `mapstructure:"resend_seconds"`
+	DailyLimit      int    `mapstructure:"daily_limit"`
+	IPHourlyLimit   int    `mapstructure:"ip_hourly_limit"`
+}
+
+func (s SMSConfig) CodeTTL() time.Duration {
+	if s.CodeTTLSeconds <= 0 {
+		return 5 * time.Minute
+	}
+	return time.Duration(s.CodeTTLSeconds) * time.Second
+}
+
+func (s SMSConfig) ResendInterval() time.Duration {
+	if s.ResendSeconds <= 0 {
+		return 60 * time.Second
+	}
+	return time.Duration(s.ResendSeconds) * time.Second
+}
+
+func (s SMSConfig) DailyLimitOrDefault() int {
+	if s.DailyLimit <= 0 {
+		return 5
+	}
+	return s.DailyLimit
+}
+
+func (s SMSConfig) IPHourlyLimitOrDefault() int {
+	if s.IPHourlyLimit <= 0 {
+		return 20
+	}
+	return s.IPHourlyLimit
 }
 
 type UploadConfig struct {

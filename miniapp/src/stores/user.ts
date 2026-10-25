@@ -143,6 +143,15 @@ export const useUserStore = defineStore('user', {
       return res
     },
 
+    /** H5 手机号验证码登录。手机号不存在时后端自动建号 */
+    async phoneLogin(phone: string, code: string) {
+      const res = await authApi.phoneLogin(phone, code)
+      this.token = res.token
+      uni.setStorageSync('token', res.token)
+      this.user = res.user
+      return res
+    },
+
     async fetchMe() {
       try {
         const me: MeResp = await userApi.me()

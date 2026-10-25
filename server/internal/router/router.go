@@ -31,6 +31,9 @@ func Setup() *gin.Engine {
 	// ---------- 无需登录 ----------
 	{
 		v1.POST("/auth/wx-login", handler.WxLogin)
+		// H5 手机号验证码登录。发送接口本身带手机号/IP 限频，不另挂中间件
+		v1.POST("/auth/sms/send", handler.SendSmsCode)
+		v1.POST("/auth/sms/login", handler.PhoneLogin)
 		v1.GET("/common/dict", handler.Dict)
 		v1.GET("/common/config", handler.ClientConfig)
 		// 三观题库：登录即可取（答题免费，题目本身无隐私）
