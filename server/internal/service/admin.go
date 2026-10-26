@@ -1,6 +1,7 @@
 package service
 
 import (
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -11,24 +12,46 @@ import (
 	"hunjie/internal/pkg/logger"
 )
 
-// Overview 数据概览。小项目直接实时 count，不做统计表和定时任务
+// Overview 数据概览。小项目直接实时 count，不做统计表和定时任务。
+// 六个统计互不依赖，并发执行 —— 串行在远程库上要 300ms+，管理端首屏会明显发木。
 func Overview() map[string]int64 {
 	var totalUser, todayNew, pendingAudit, pendingReport, matched, activeWeek int64
 	today := time.Now().Format("2006-01-02")
+	weekAgo := time.Now().AddDate(0, 0, -7)
 
-	db.DB.Model(&model.User{}).Where("status <> ?", model.StatusIncomplete).Count(&totalUser)
-	db.DB.Model(&model.User{}).Where("created_at >= ?", today).Count(&todayNew)
-	db.DB.Table("user_profile p").
-		Joins("JOIN user u ON u.id = p.user_id AND u.deleted_at IS NULL").
-		Where("p.deleted_at IS NULL AND p.audit_status = ?", model.AuditPending).
-		Where("u.status IN ?", []int{model.StatusAuditing, model.StatusNormal}).
-		// 运营号（审核员/管理员/超管）不参与择偶，不该出现在待审队列里被自己审
-		Where("u.role = ?", model.RoleUser).
-		Count(&pendingAudit)
-	db.DB.Model(&model.Report{}).Where("status = ?", model.ReportPending).Count(&pendingReport)
-	db.DB.Model(&model.Conversation{}).Where("status = ?", model.ConvNormal).Count(&matched)
-	db.DB.Model(&model.User{}).
-		Where("last_active_at >= ?", time.Now().AddDate(0, 0, -7)).Count(&activeWeek)
+	var wg sync.WaitGroup
+	wg.Add(6)
+	go func() {
+		defer wg.Done()
+		db.DB.Model(&model.User{}).Where("status <> ?", model.StatusIncomplete).Count(&totalUser)
+	}()
+	go func() {
+		defer wg.Done()
+		db.DB.Model(&model.User{}).Where("created_at >= ?", today).Count(&todayNew)
+	}()
+	go func() {
+		defer wg.Done()
+		db.DB.Table("user_profile p").
+			Joins("JOIN user u ON u.id = p.user_id AND u.deleted_at IS NULL").
+			Where("p.deleted_at IS NULL AND p.audit_status = ?", model.AuditPending).
+			Where("u.status IN ?", []int{model.StatusAuditing, model.StatusNormal}).
+			// 运营号（审核员/管理员/超管）不参与择偶，不该出现在待审队列里被自己审
+			Where("u.role = ?", model.RoleUser).
+			Count(&pendingAudit)
+	}()
+	go func() {
+		defer wg.Done()
+		db.DB.Model(&model.Report{}).Where("status = ?", model.ReportPending).Count(&pendingReport)
+	}()
+	go func() {
+		defer wg.Done()
+		db.DB.Model(&model.Conversation{}).Where("status = ?", model.ConvNormal).Count(&matched)
+	}()
+	go func() {
+		defer wg.Done()
+		db.DB.Model(&model.User{}).Where("last_active_at >= ?", weekAgo).Count(&activeWeek)
+	}()
+	wg.Wait()
 
 	return map[string]int64{
 		"total_user":     totalUser,
@@ -64,21 +87,37 @@ func AuditList(page dto.PageQuery) ([]AuditItem, int64, error) {
 		// 运营号不进待审队列：管理员的资料不需要审，也不应占用审核员的时间
 		Where("u.role = ?", model.RoleUser)
 
-	var total int64
-	if err := q.Session(&gorm.Session{}).Count(&total).Error; err != nil {
-		return nil, 0, err
+	// COUNT 与列表并发；列表回来后再并发补用户与相册，整体从 4 次往返降到 2 次
+	var (
+		total    int64
+		profiles []model.UserProfile
+		countErr error
+		listErr  error
+	)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		countErr = q.Session(&gorm.Session{}).Count(&total).Error
+	}()
+	go func() {
+		defer wg.Done()
+		listErr = q.Session(&gorm.Session{}).
+			Select("p.*").
+			Order("p.updated_at asc"). // 先提交的先审
+			Limit(page.PageSize).Offset(page.Offset()).
+			Scan(&profiles).Error
+	}()
+	wg.Wait()
+
+	if countErr != nil {
+		return nil, 0, countErr
 	}
 	if total == 0 {
 		return []AuditItem{}, 0, nil
 	}
-
-	var profiles []model.UserProfile
-	if err := q.Session(&gorm.Session{}).
-		Select("p.*").
-		Order("p.updated_at asc"). // 先提交的先审
-		Limit(page.PageSize).Offset(page.Offset()).
-		Scan(&profiles).Error; err != nil {
-		return nil, 0, err
+	if listErr != nil {
+		return nil, 0, listErr
 	}
 
 	userIDs := make([]uint64, 0, len(profiles))
@@ -87,14 +126,23 @@ func AuditList(page dto.PageQuery) ([]AuditItem, int64, error) {
 	}
 
 	var users []model.User
-	db.DB.Where("id IN ?", userIDs).Find(&users)
+	var photos []model.UserPhoto
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		db.DB.Where("id IN ?", userIDs).Find(&users)
+	}()
+	go func() {
+		defer wg.Done()
+		db.DB.Where("user_id IN ?", userIDs).Order("sort asc, id asc").Find(&photos)
+	}()
+	wg.Wait()
+
 	userMap := make(map[uint64]model.User, len(users))
 	for _, u := range users {
 		userMap[u.ID] = u
 	}
 
-	var photos []model.UserPhoto
-	db.DB.Where("user_id IN ?", userIDs).Order("sort asc, id asc").Find(&photos)
 	photoMap := make(map[uint64][]model.UserPhoto)
 	for _, p := range photos {
 		photoMap[p.UserID] = append(photoMap[p.UserID], p)
@@ -210,51 +258,83 @@ func AdminUserList(keyword string, status int, page dto.PageQuery) ([]dto.AdminU
 		q = q.Where("u.status = ?", status)
 	}
 
-	var total int64
-	if err := q.Session(&gorm.Session{}).Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
+	// COUNT 与列表并发，少一个远程往返
+	var (
+		total    int64
+		list     []dto.AdminUserItem
+		countErr error
+		listErr  error
+	)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		countErr = q.Session(&gorm.Session{}).Count(&total).Error
+	}()
+	go func() {
+		defer wg.Done()
+		listErr = q.Session(&gorm.Session{}).
+			Select(`u.id, u.nickname, u.avatar, u.phone, u.gender, u.role, u.status,
+				u.ban_reason, u.created_at, u.last_active_at,
+				p.age, p.city, p.education, p.income_level, p.audit_status`).
+			Order("u.id DESC").
+			Limit(page.PageSize).Offset(page.Offset()).
+			Scan(&list).Error
+	}()
+	wg.Wait()
 
-	var list []dto.AdminUserItem
-	if err := q.Session(&gorm.Session{}).
-		Select(`u.id, u.nickname, u.avatar, u.phone, u.gender, u.role, u.status,
-			u.ban_reason, u.created_at, u.last_active_at,
-			p.age, p.city, p.education, p.income_level, p.audit_status`).
-		Order("u.id DESC").
-		Limit(page.PageSize).Offset(page.Offset()).
-		Scan(&list).Error; err != nil {
-		return nil, 0, err
+	if countErr != nil {
+		return nil, 0, countErr
+	}
+	if listErr != nil {
+		return nil, 0, listErr
 	}
 	return list, total, nil
 }
 
-// AdminUserDetail 用户详情。含资料、相册、举报记录
+// AdminUserDetail 用户详情。含资料、相册、举报记录。
+// 用户本身要先取（不存在就直接返回），其余 7 块互不依赖，全部并发。
 func AdminUserDetail(userID uint64) (map[string]any, error) {
 	var u model.User
 	if err := db.DB.First(&u, userID).Error; err != nil {
 		return nil, Biz("该用户不存在")
 	}
 
-	var p model.UserProfile
-	db.DB.Where("user_id = ?", userID).First(&p)
-
-	var r model.UserRequirement
-	db.DB.Where("user_id = ?", userID).First(&r)
-
-	var photos []model.UserPhoto
-	db.DB.Where("user_id = ?", userID).Order("sort asc").Find(&photos)
-
-	var reports []model.Report
-	db.DB.Where("target_user_id = ?", userID).Order("id DESC").Limit(20).Find(&reports)
-
-	var likeCount, likedCount, matchCount int64
-	db.DB.Model(&model.Interaction{}).
-		Where("from_user_id = ? AND type = ?", userID, model.InteractionLike).Count(&likeCount)
-	db.DB.Model(&model.Interaction{}).
-		Where("to_user_id = ? AND type = ?", userID, model.InteractionLike).Count(&likedCount)
-	db.DB.Model(&model.Conversation{}).
-		Where("(user_a_id = ? OR user_b_id = ?) AND status = ?",
-			userID, userID, model.ConvNormal).Count(&matchCount)
+	var (
+		p          model.UserProfile
+		r          model.UserRequirement
+		photos     []model.UserPhoto
+		reports    []model.Report
+		likeCount  int64
+		likedCount int64
+		matchCount int64
+	)
+	var wg sync.WaitGroup
+	wg.Add(7)
+	go func() { defer wg.Done(); db.DB.Where("user_id = ?", userID).First(&p) }()
+	go func() { defer wg.Done(); db.DB.Where("user_id = ?", userID).First(&r) }()
+	go func() { defer wg.Done(); db.DB.Where("user_id = ?", userID).Order("sort asc").Find(&photos) }()
+	go func() {
+		defer wg.Done()
+		db.DB.Where("target_user_id = ?", userID).Order("id DESC").Limit(20).Find(&reports)
+	}()
+	go func() {
+		defer wg.Done()
+		db.DB.Model(&model.Interaction{}).
+			Where("from_user_id = ? AND type = ?", userID, model.InteractionLike).Count(&likeCount)
+	}()
+	go func() {
+		defer wg.Done()
+		db.DB.Model(&model.Interaction{}).
+			Where("to_user_id = ? AND type = ?", userID, model.InteractionLike).Count(&likedCount)
+	}()
+	go func() {
+		defer wg.Done()
+		db.DB.Model(&model.Conversation{}).
+			Where("(user_a_id = ? OR user_b_id = ?) AND status = ?",
+				userID, userID, model.ConvNormal).Count(&matchCount)
+	}()
+	wg.Wait()
 
 	return map[string]any{
 		"user":        u,
@@ -433,17 +513,33 @@ func AdminReportList(status int, page dto.PageQuery) ([]map[string]any, int64, e
 		q = q.Where("status = ?", status)
 	}
 
-	var total int64
-	if err := q.Session(&gorm.Session{}).Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
+	// COUNT 与列表并发，少一个远程往返
+	var (
+		total    int64
+		reports  []model.Report
+		countErr error
+		listErr  error
+	)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		countErr = q.Session(&gorm.Session{}).Count(&total).Error
+	}()
+	go func() {
+		defer wg.Done()
+		listErr = q.Session(&gorm.Session{}).
+			Order("status asc, id desc"). // 待处理的排前面
+			Limit(page.PageSize).Offset(page.Offset()).
+			Find(&reports).Error
+	}()
+	wg.Wait()
 
-	var reports []model.Report
-	if err := q.Session(&gorm.Session{}).
-		Order("status asc, id desc"). // 待处理的排前面
-		Limit(page.PageSize).Offset(page.Offset()).
-		Find(&reports).Error; err != nil {
-		return nil, 0, err
+	if countErr != nil {
+		return nil, 0, countErr
+	}
+	if listErr != nil {
+		return nil, 0, listErr
 	}
 
 	// 批量补上举报人与被举报人的昵称

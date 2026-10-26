@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"strings"
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -24,38 +25,66 @@ const MaxPhotoNum = 9
 // maxPhotoNum 兼容旧引用，值同 MaxPhotoNum
 const maxPhotoNum = MaxPhotoNum
 
-// GetMe 我的完整信息
+// GetMe 我的完整信息。
+// 资料、择偶要求、相册、邀请红点四块互相独立，并发查：
+// 这个接口在启动、「我的」页每次 onShow 都会调，串行 4 次远程 RTT 会明显拖慢首屏。
 func GetMe(u *model.User) (*dto.MeResp, error) {
 	resp := &dto.MeResp{User: u, Phone: u.Phone}
 
-	var p model.UserProfile
-	if err := db.DB.Where("user_id = ?", u.ID).First(&p).Error; err == nil {
+	var (
+		p            model.UserProfile
+		r            model.UserRequirement
+		photos       []model.UserPhoto
+		inviteUnseen int64
+		errProfile   error
+		errReq       error
+		errPhotos    error
+		errInvite    error
+	)
+
+	var wg sync.WaitGroup
+	wg.Add(4)
+	go func() {
+		defer wg.Done()
+		errProfile = db.DB.Where("user_id = ?", u.ID).First(&p).Error
+	}()
+	go func() {
+		defer wg.Done()
+		errReq = db.DB.Where("user_id = ?", u.ID).First(&r).Error
+	}()
+	go func() {
+		defer wg.Done()
+		errPhotos = db.DB.Where("user_id = ?", u.ID).Order("sort asc, id asc").Find(&photos).Error
+	}()
+	go func() {
+		defer wg.Done()
+		// 已结算未查看的邀请数：「我的」页据此给「邀请有礼」挂红点
+		errInvite = db.DB.Model(&model.InviteRelation{}).
+			Where("inviter_id = ? AND status = ? AND inviter_seen = ?",
+				u.ID, model.InviteSettled, false).
+			Count(&inviteUnseen).Error
+	}()
+	wg.Wait()
+
+	if errProfile == nil {
 		resp.Profile = &p
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, err
+	} else if !errors.Is(errProfile, gorm.ErrRecordNotFound) {
+		return nil, errProfile
 	}
 
-	var r model.UserRequirement
-	if err := db.DB.Where("user_id = ?", u.ID).First(&r).Error; err == nil {
+	if errReq == nil {
 		resp.Requirement = &r
-	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, err
+	} else if !errors.Is(errReq, gorm.ErrRecordNotFound) {
+		return nil, errReq
 	}
 
-	var photos []model.UserPhoto
-	if err := db.DB.Where("user_id = ?", u.ID).Order("sort asc, id asc").Find(&photos).Error; err != nil {
-		return nil, err
+	if errPhotos != nil {
+		return nil, errPhotos
 	}
 	resp.Photos = photos
 
-	// 已结算未查看的邀请数：「我的」页据此给「邀请有礼」挂红点。
-	// 结算发生在对方审核通过的那一刻，邀请人多半不在场，必须有东西把他唤回来
-	var inviteUnseen int64
-	if err := db.DB.Model(&model.InviteRelation{}).
-		Where("inviter_id = ? AND status = ? AND inviter_seen = ?",
-			u.ID, model.InviteSettled, false).
-		Count(&inviteUnseen).Error; err != nil {
-		return nil, err
+	if errInvite != nil {
+		return nil, errInvite
 	}
 	resp.InviteUnseen = inviteUnseen
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -64,26 +65,53 @@ type InviteRecord struct {
 	SettledAt *time.Time `json:"settled_at"`
 }
 
-// MyInvite 取（或在首次访问时惰性生成）我的邀请码，并返回邀请进度
+// MyInvite 取（或在首次访问时惰性生成）我的邀请码，并返回邀请进度。
+// 邀请码、三个计数、关系列表、权益状态互不依赖，并发查：
+// 串行在远程库上要 400ms+，邀请页会白等。
 func MyInvite(me *model.User) (*MyInviteInfo, error) {
-	code, err := ensureInviteCode(me.ID)
-	if err != nil {
-		return nil, err
+	var (
+		code             string
+		settled, pending int64
+		unseen           int64
+		relations        []model.InviteRelation
+		u                model.User
+		codeErr          error
+	)
+	var wg sync.WaitGroup
+	wg.Add(6)
+	go func() { defer wg.Done(); code, codeErr = ensureInviteCode(me.ID) }()
+	go func() {
+		defer wg.Done()
+		db.DB.Model(&model.InviteRelation{}).
+			Where("inviter_id = ? AND status = ?", me.ID, model.InviteSettled).Count(&settled)
+	}()
+	go func() {
+		defer wg.Done()
+		db.DB.Model(&model.InviteRelation{}).
+			Where("inviter_id = ? AND status = ?", me.ID, model.InvitePending).Count(&pending)
+	}()
+	go func() {
+		defer wg.Done()
+		// 结算发生在审核通过的那一刻，邀请人多半不在场。
+		// unseen 是「有新结算要看」的信号，驱动「我的」页红点与邀请页一次性提示
+		db.DB.Model(&model.InviteRelation{}).
+			Where("inviter_id = ? AND status = ? AND inviter_seen = ?", me.ID, model.InviteSettled, false).
+			Count(&unseen)
+	}()
+	go func() {
+		defer wg.Done()
+		db.DB.Where("inviter_id = ?", me.ID).Order("id DESC").Limit(50).Find(&relations)
+	}()
+	go func() {
+		defer wg.Done()
+		// 权益状态取最新实况：可能刚被结算发放
+		db.DB.Select("vip_level").First(&u, me.ID)
+	}()
+	wg.Wait()
+
+	if codeErr != nil {
+		return nil, codeErr
 	}
-
-	var settled, pending, unseen int64
-	db.DB.Model(&model.InviteRelation{}).
-		Where("inviter_id = ? AND status = ?", me.ID, model.InviteSettled).Count(&settled)
-	db.DB.Model(&model.InviteRelation{}).
-		Where("inviter_id = ? AND status = ?", me.ID, model.InvitePending).Count(&pending)
-	// 结算发生在审核通过的那一刻，邀请人多半不在场。
-	// unseen 是「有新结算要看」的信号，驱动「我的」页红点与邀请页一次性提示
-	db.DB.Model(&model.InviteRelation{}).
-		Where("inviter_id = ? AND status = ? AND inviter_seen = ?", me.ID, model.InviteSettled, false).
-		Count(&unseen)
-
-	var relations []model.InviteRelation
-	db.DB.Where("inviter_id = ?", me.ID).Order("id DESC").Limit(50).Find(&relations)
 
 	infos := make([]InviteRecord, 0, len(relations))
 	if len(relations) > 0 {
@@ -106,10 +134,6 @@ func MyInvite(me *model.User) (*MyInviteInfo, error) {
 			})
 		}
 	}
-
-	// 权益状态取最新实况：可能刚被结算发放
-	var u model.User
-	db.DB.Select("vip_level").First(&u, me.ID)
 
 	return &MyInviteInfo{
 		Code:          code,

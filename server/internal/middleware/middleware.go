@@ -71,11 +71,17 @@ func Auth() gin.HandlerFunc {
 
 		now := time.Now()
 		if u.LastActiveAt == nil || now.Sub(*u.LastActiveAt) >= 5*time.Minute {
-			if err := db.DB.Model(&u).UpdateColumn("last_active_at", now).Error; err != nil {
-				logger.Warnf("更新活跃时间失败 uid=%d: %v", u.ID, err)
-			} else {
-				u.LastActiveAt = &now
-			}
+			u.LastActiveAt = &now
+			// 活跃时间是「顺带」记的，异步写：远程库一次 UPDATE 要 100ms+，
+			// 不能让它压在每个请求的响应时间上（5 分钟才触发一次，量也很小）。
+			uid := u.ID
+			go func() {
+				if err := db.DB.Model(&model.User{}).
+					Where("id = ?", uid).
+					UpdateColumn("last_active_at", time.Now()).Error; err != nil {
+					logger.Warnf("更新活跃时间失败 uid=%d: %v", uid, err)
+				}
+			}()
 		}
 
 		c.Set(ctxUserKey, &u)

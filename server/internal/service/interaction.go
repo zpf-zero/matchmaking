@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -138,7 +139,8 @@ func ListViewedMe(me *model.User, page dto.PageQuery) (*ViewedMeResp, error) {
 		locked = maxInt64(total-ViewedMeLimit, 0)
 	}
 
-	cards, _, err := runCardQuery(me, base, dto.PageQuery{Page: page.Page, PageSize: limit})
+	// 总数上面已经算过，这里只取当前页，不再重复 COUNT
+	cards, err := runCardQueryPage(me, base, dto.PageQuery{Page: page.Page, PageSize: limit})
 	if err != nil {
 		return nil, err
 	}
@@ -174,21 +176,34 @@ func MarkRead(me *model.User, actType int) error {
 		Update("is_read", 1).Error
 }
 
-// UnreadCount 各类未读数
+// UnreadCount 各类未读数。
+// 三个 COUNT 互不依赖，并发执行：这个接口每次切 tab/回前台都会调，
+// 串行跑在远程库上要 150ms+，会直接变成「切换不跟手」的体感。
 func UnreadCount(me *model.User) map[string]int64 {
 	var likedMe, viewedMe, msg int64
 
-	db.DB.Model(&model.Interaction{}).
-		Where("to_user_id = ? AND type = ? AND is_read = 0", me.ID, model.InteractionLike).
-		Count(&likedMe)
-	db.DB.Model(&model.Interaction{}).
-		Where("to_user_id = ? AND type = ? AND is_read = 0", me.ID, model.InteractionView).
-		Count(&viewedMe)
-
-	db.DB.Model(&model.Conversation{}).
-		Select("COALESCE(SUM(CASE WHEN user_a_id = ? THEN a_unread ELSE b_unread END), 0)", me.ID).
-		Where("(user_a_id = ? OR user_b_id = ?) AND status = ?", me.ID, me.ID, model.ConvNormal).
-		Scan(&msg)
+	var wg sync.WaitGroup
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		db.DB.Model(&model.Interaction{}).
+			Where("to_user_id = ? AND type = ? AND is_read = 0", me.ID, model.InteractionLike).
+			Count(&likedMe)
+	}()
+	go func() {
+		defer wg.Done()
+		db.DB.Model(&model.Interaction{}).
+			Where("to_user_id = ? AND type = ? AND is_read = 0", me.ID, model.InteractionView).
+			Count(&viewedMe)
+	}()
+	go func() {
+		defer wg.Done()
+		db.DB.Model(&model.Conversation{}).
+			Select("COALESCE(SUM(CASE WHEN user_a_id = ? THEN a_unread ELSE b_unread END), 0)", me.ID).
+			Where("(user_a_id = ? OR user_b_id = ?) AND status = ?", me.ID, me.ID, model.ConvNormal).
+			Scan(&msg)
+	}()
+	wg.Wait()
 
 	return map[string]int64{
 		"liked_me":  likedMe,

@@ -35,7 +35,11 @@ func Init() error {
 	if err != nil {
 		return fmt.Errorf("获取底层连接失败: %w", err)
 	}
-	sqlDB.SetMaxIdleConns(10)
+	// 数据库在公网，建连要过 TCP 握手 + MySQL 认证，单次 100ms 上下。
+	// 空闲连接只要 10 个，突发并发时多出来的连接用完就被回收，
+	// 下一波请求又要重新握手，P50 会被抬高好几倍。
+	// 因此空闲连接数与最大连接数对齐，把连接池保持在"热"状态。
+	sqlDB.SetMaxIdleConns(50)
 	sqlDB.SetMaxOpenConns(50)
 	sqlDB.SetConnMaxLifetime(time.Hour)
 

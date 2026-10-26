@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"gorm.io/gorm"
@@ -39,12 +40,20 @@ type cardRow struct {
 	HomeCity      string
 	SelfIntro     string
 	Industry      int8
+	// 原生家庭（权益内容）。跟着主查询一起取回来，避免详情接口再单查一次 user_profile
+	FamilyParentOcc  int8
+	FamilyAtmosphere int8
+	FamilyOnlyChild  int8
+	FamilyCity       string
+	FamilyNote       string
+	FamilyVisible    int8
 }
 
 const cardFields = `u.id, u.nickname, u.avatar, u.gender, u.last_active_at,
 	p.age, p.height, p.weight, p.education, p.school, p.occupation, p.income_level,
 	p.marital_status, p.has_children, p.house_status, p.car_status,
-	p.province, p.city, p.city_code, p.home_province, p.home_city, p.self_intro, p.industry`
+	p.province, p.city, p.city_code, p.home_province, p.home_city, p.self_intro, p.industry,
+	p.family_parent_occ, p.family_atmosphere, p.family_only_child, p.family_city, p.family_note, p.family_visible`
 
 // baseQuery 可见用户的公共过滤条件：
 // 异性、状态正常、资料审核通过、非我本人、排除黑名单双向
@@ -138,43 +147,97 @@ func Search(me *model.User, f dto.SearchQuery) ([]dto.UserCard, int64, error) {
 func runCardQuery(me *model.User, q *gorm.DB, page dto.PageQuery) ([]dto.UserCard, int64, error) {
 	page.Normalize()
 
-	var total int64
-	if err := q.Session(&gorm.Session{}).Count(&total).Error; err != nil {
-		return nil, 0, err
+	// COUNT 与列表查询互不依赖，并发跑：远程库一次往返约 55ms，
+	// 串行会让每次进推荐/筛选多等一档，首页首屏尤其明显。
+	var (
+		total    int64
+		rows     []cardRow
+		countErr error
+		scanErr  error
+	)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		countErr = q.Session(&gorm.Session{}).Count(&total).Error
+	}()
+	go func() {
+		defer wg.Done()
+		scanErr = q.Session(&gorm.Session{}).
+			Select(cardFields).
+			// 权益用户的曝光加成：把「最近活跃」的主排序让出一档给会员，
+			// 但不做纯会员优先 —— 婚恋场景里对方不再上线，再高的曝光也没有意义。
+			// 用 BOOLEAN 表达式做第一排序键，等价于「会员组内部仍按活跃度排」。
+			//
+			// 权益判定已从 vip_expire_at（到期时间）改为 vip_level（永久等级），
+			// 见 docs/08-权益体系重构方案.md 4.4 与 migrations/003_benefit.sql。
+			Order("(u.vip_level >= 1) DESC, u.last_active_at DESC, u.id DESC").
+			Limit(page.PageSize).Offset(page.Offset()).
+			Scan(&rows).Error
+	}()
+	wg.Wait()
+
+	if countErr != nil {
+		return nil, 0, countErr
 	}
 	if total == 0 {
 		return []dto.UserCard{}, 0, nil
 	}
-
-	var rows []cardRow
-	if err := q.Session(&gorm.Session{}).
-		Select(cardFields).
-		// 权益用户的曝光加成：把「最近活跃」的主排序让出一档给会员，
-		// 但不做纯会员优先 —— 婚恋场景里对方不再上线，再高的曝光也没有意义。
-		// 用 BOOLEAN 表达式做第一排序键，等价于「会员组内部仍按活跃度排」。
-		//
-		// 权益判定已从 vip_expire_at（到期时间）改为 vip_level（永久等级），
-		// 见 docs/08-权益体系重构方案.md 4.4 与 migrations/003_benefit.sql。
-		Order("(u.vip_level >= 1) DESC, u.last_active_at DESC, u.id DESC").
-		Limit(page.PageSize).Offset(page.Offset()).
-		Scan(&rows).Error; err != nil {
-		return nil, 0, err
+	if scanErr != nil {
+		return nil, 0, scanErr
 	}
 
 	cards := buildCards(me, rows)
 	return cards, total, nil
 }
 
+// runCardQueryPage 只取当前页，不再重复 COUNT。
+// 用于「调用方已经算过总数」的场景（如谁看过我：要先按总数算锁定条数）。
+func runCardQueryPage(me *model.User, q *gorm.DB, page dto.PageQuery) ([]dto.UserCard, error) {
+	page.Normalize()
+
+	var rows []cardRow
+	if err := q.Session(&gorm.Session{}).
+		Select(cardFields).
+		Order("(u.vip_level >= 1) DESC, u.last_active_at DESC, u.id DESC").
+		Limit(page.PageSize).Offset(page.Offset()).
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return []dto.UserCard{}, nil
+	}
+	return buildCards(me, rows), nil
+}
+
 // buildCards 批量组装卡片。匹配度需要对方的资料与择偶要求，一次性批量取，避免 N+1
 func buildCards(me *model.User, rows []cardRow) []dto.UserCard {
-	myProfile := loadProfile(me.ID)
-	myReq := loadRequirement(me.ID)
-
-	ids := make([]uint64, 0, len(rows))
+	ids := make([]uint64, 0, len(rows)+1)
 	for _, r := range rows {
 		ids = append(ids, r.ID)
 	}
-	otherReqs := loadRequirements(ids)
+
+	// 我的资料与「所有人（含我）的择偶要求」互不依赖，并发取；
+	// 我的择偶要求也并进 IN 查询，少一次远程往返。
+	var (
+		myProfile *model.UserProfile
+		reqs      map[uint64]*model.UserRequirement
+	)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() { defer wg.Done(); myProfile = loadProfile(me.ID) }()
+	go func() { defer wg.Done(); reqs = loadRequirements(append(ids, me.ID)) }()
+	wg.Wait()
+
+	return buildCardsWith(me, rows, myProfile, reqs)
+}
+
+// buildCardsWith 组装卡片，但使用调用方已经取好的资料/择偶要求。
+// 详情页可以在查主记录的同时把这些一起并发取回来，从而少等一个远程往返。
+func buildCardsWith(me *model.User, rows []cardRow,
+	myProfile *model.UserProfile, reqs map[uint64]*model.UserRequirement) []dto.UserCard {
+
+	myReq := reqs[me.ID]
 
 	cards := make([]dto.UserCard, 0, len(rows))
 	for _, r := range rows {
@@ -195,7 +258,7 @@ func buildCards(me *model.User, rows []cardRow) []dto.UserCard {
 			Occupation:    r.Occupation,
 			Industry:      r.Industry,
 			IndustryText:  model.DictLabel("industry", int(r.Industry)),
-			MatchRate:     matchRate(myReq, myProfile, otherReqs[r.ID], rowToProfile(r)),
+			MatchRate:     matchRate(myReq, myProfile, reqs[r.ID], rowToProfile(r)),
 			ActiveText:    activeText(r.LastActiveAt),
 		})
 	}
@@ -214,10 +277,30 @@ func GetUserDetail(me *model.User, targetID uint64) (*dto.UserDetailResp, error)
 		return nil, Biz("看自己的资料请去「我的」页面")
 	}
 
-	var rows []cardRow
-	if err := baseQuery(me).Where("u.id = ?", targetID).
-		Select(cardFields).Scan(&rows).Error; err != nil {
-		return nil, err
+	// 主记录、我的资料、双方择偶要求互不依赖，第一阶段就一起发出去；
+	// 否则匹配度要等第二阶段再查一次，白白多一个远程往返。
+	var (
+		rows      []cardRow
+		myProfile *model.UserProfile
+		reqs      map[uint64]*model.UserRequirement
+		scanErr   error
+	)
+	var wgFirst sync.WaitGroup
+	wgFirst.Add(3)
+	go func() {
+		defer wgFirst.Done()
+		scanErr = baseQuery(me).Where("u.id = ?", targetID).
+			Select(cardFields).Scan(&rows).Error
+	}()
+	go func() { defer wgFirst.Done(); myProfile = loadProfile(me.ID) }()
+	go func() {
+		defer wgFirst.Done()
+		reqs = loadRequirements([]uint64{me.ID, targetID})
+	}()
+	wgFirst.Wait()
+
+	if scanErr != nil {
+		return nil, scanErr
 	}
 	if len(rows) == 0 {
 		return nil, Biz("该用户不存在或资料已下架")
@@ -226,7 +309,7 @@ func GetUserDetail(me *model.User, targetID uint64) (*dto.UserDetailResp, error)
 
 	unlocked := me.HasVip()
 
-	card := buildCards(me, rows)[0]
+	card := buildCardsWith(me, rows, myProfile, reqs)[0]
 	resp := &dto.UserDetailResp{
 		UserCard:     card,
 		Weight:       r.Weight,
@@ -240,12 +323,38 @@ func GetUserDetail(me *model.User, targetID uint64) (*dto.UserDetailResp, error)
 		SelfIntro:    r.SelfIntro,
 	}
 
+	// 相册、三观、互动关系、会话四块互不依赖，并发查。
+	// 远程 MySQL 单次往返约 55ms，串行等待会白花三四百毫秒 —— 这是「点开资料卡顿」的主因。
+	var (
+		photos []model.UserPhoto
+		acts   []model.Interaction
+		tv     *dto.ThreeViewInfo
+		conv   *model.Conversation
+	)
+	var wg sync.WaitGroup
+	wg.Add(4)
+	go func() {
+		defer wg.Done()
+		db.DB.Where("user_id = ? AND audit_status = ?", targetID, model.AuditPassed).
+			Order("sort asc, id asc").Find(&photos)
+	}()
+	go func() {
+		defer wg.Done()
+		tv = buildThreeView(me, targetID, unlocked)
+	}()
+	go func() {
+		defer wg.Done()
+		db.DB.Where("(from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?)",
+			me.ID, targetID, targetID, me.ID).Find(&acts)
+	}()
+	go func() {
+		defer wg.Done()
+		conv = findConversation(me.ID, targetID)
+	}()
+	wg.Wait()
+
 	// 相册只展示审核通过的。免费用户只取前 N 张，
 	// 并单独统计总数与被锁张数，前端据此渲染「还有 N 张」的解锁提示。
-	var photos []model.UserPhoto
-	db.DB.Where("user_id = ? AND audit_status = ?", targetID, model.AuditPassed).
-		Order("sort asc, id asc").Find(&photos)
-
 	resp.PhotoTotal = len(photos)
 	resp.Photos = make([]string, 0, len(photos))
 	shown := 0
@@ -263,33 +372,29 @@ func GetUserDetail(me *model.User, targetID uint64) (*dto.UserDetailResp, error)
 	// ---- 原生家庭（L2，双重条件：对方授权 + 我已解锁）----
 	// 必须由对方主动开启 FamilyVisible 才展示，这是最敏感的资料块。
 	// 默认公开会劝退大量用户，所以「没填」和「没授权」都返回空。
-	var peerProfile model.UserProfile
-	if err := db.DB.Where("user_id = ?", targetID).First(&peerProfile).Error; err == nil {
-		if unlocked && peerProfile.FamilyVisible == 1 {
-			resp.ViewedFamily = true
-			resp.Family = &dto.FamilyInfo{
-				ParentOcc:     peerProfile.FamilyParentOcc,
-				ParentOccText: model.DictLabel("family_parent_occ", int(peerProfile.FamilyParentOcc)),
-				Atmosphere:    peerProfile.FamilyAtmosphere,
-				AtmosText:     model.DictLabel("family_atmosphere", int(peerProfile.FamilyAtmosphere)),
-				OnlyChild:     peerProfile.FamilyOnlyChild,
-				OnlyChildText: model.DictLabel("family_only_child", int(peerProfile.FamilyOnlyChild)),
-				City:          peerProfile.FamilyCity,
-				Note:          peerProfile.FamilyNote,
-			}
+	// 字段已在主查询里一起取出，这里不再单独查一次 user_profile（省一个远程 RTT）。
+	if unlocked && r.FamilyVisible == 1 {
+		resp.ViewedFamily = true
+		resp.Family = &dto.FamilyInfo{
+			ParentOcc:     r.FamilyParentOcc,
+			ParentOccText: model.DictLabel("family_parent_occ", int(r.FamilyParentOcc)),
+			Atmosphere:    r.FamilyAtmosphere,
+			AtmosText:     model.DictLabel("family_atmosphere", int(r.FamilyAtmosphere)),
+			OnlyChild:     r.FamilyOnlyChild,
+			OnlyChildText: model.DictLabel("family_only_child", int(r.FamilyOnlyChild)),
+			City:          r.FamilyCity,
+			Note:          r.FamilyNote,
 		}
 	}
 
 	// ---- 三观问答（L2：答免费、看答案需权益）----
-	peerAnswers, _ := loadAnswers(targetID)
-	resp.ThreeViewAnswered = len(peerAnswers) > 0
+	// 只查一次答案：之前先 loadAnswers(target) 判断是否答过，buildThreeView 内部又查一遍，
+	// 同一个用户的答案每次详情多花一个远程 RTT，这里合并成一次。
 	resp.ThreeViewUnlocked = unlocked
-	resp.ThreeView = buildThreeView(me, targetID, unlocked)
+	resp.ThreeView = tv
+	resp.ThreeViewAnswered = tv != nil && tv.Answered > 0
 
 	// 与我的关系
-	var acts []model.Interaction
-	db.DB.Where("(from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?)",
-		me.ID, targetID, targetID, me.ID).Find(&acts)
 	for _, a := range acts {
 		if a.Type != model.InteractionLike {
 			continue
@@ -301,12 +406,14 @@ func GetUserDetail(me *model.User, targetID uint64) (*dto.UserDetailResp, error)
 		}
 	}
 
-	if conv := findConversation(me.ID, targetID); conv != nil && conv.Status == model.ConvNormal {
+	if conv != nil && conv.Status == model.ConvNormal {
 		resp.IsMatched = true
 		resp.ConversationID = conv.ID
 	}
 
-	recordView(me.ID, targetID)
+	// 浏览记录异步写：详情页是最高频页面，不能让用户等这条 SELECT + UPDATE。
+	// 内部还有 5 分钟节流，避免同一用户反复刷新把远程库写满。
+	go recordView(me.ID, targetID)
 	return resp, nil
 }
 
@@ -387,9 +494,9 @@ func conditionScore(req *model.UserRequirement, p *model.UserProfile) float64 {
 
 // 软容差常量。改动这些值会直接改变推荐池大小与匹配度分布。
 const (
-	ageTolerance    = 3  // 年龄上下各放宽 3 岁
-	heightTolerance = 5  // 身高上下各放宽 5 cm
-	levelTolerance  = 1  // 学历/收入档位允许低 1 档
+	ageTolerance    = 3 // 年龄上下各放宽 3 岁
+	heightTolerance = 5 // 身高上下各放宽 5 cm
+	levelTolerance  = 1 // 学历/收入档位允许低 1 档
 )
 
 // applyRequirement 把择偶要求翻译成推荐流的 SQL 条件（硬门槛 + 软容差）
@@ -479,7 +586,10 @@ func rowToProfile(r cardRow) *model.UserProfile {
 	}
 }
 
-// recordView 记录浏览。同一个人重复看只更新时间，不新增记录
+// recordView 记录浏览。同一个人重复看只更新时间，不新增记录。
+//
+// 5 分钟内重复浏览不再写库：远程 MySQL 一次写往返约 100ms，
+// 用户连点几个人就会积压一串写请求，而「最近看过」精确到分钟已经足够。
 func recordView(fromID, toID uint64) {
 	var v model.Interaction
 	err := db.DB.Where("from_user_id = ? AND to_user_id = ? AND type = ?",
@@ -491,7 +601,7 @@ func recordView(fromID, toID uint64) {
 		})
 		return
 	}
-	if err == nil {
+	if err == nil && time.Since(v.UpdatedAt) > 5*time.Minute {
 		db.DB.Model(&v).UpdateColumn("updated_at", time.Now())
 	}
 }

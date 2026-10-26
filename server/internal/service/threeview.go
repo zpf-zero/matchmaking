@@ -1,6 +1,8 @@
 package service
 
 import (
+	"sync"
+
 	"hunjie/internal/db"
 	"hunjie/internal/dto"
 	"hunjie/internal/model"
@@ -126,7 +128,17 @@ func SaveThreeView(me *model.User, req dto.SaveThreeViewReq) error {
 // 但 Answered 照常返回 —— 让免费用户知道「对方答过题，解锁后能看」，
 // 而不是一片空白（空白会被误读成「对方没填」）。
 func buildThreeView(me *model.User, targetID uint64, unlocked bool) *dto.ThreeViewInfo {
-	peer, _ := loadAnswers(targetID)
+	// 已解锁时双方答案互不依赖，并发取；未解锁只看对方是否答过，只查一次
+	var peer, mine map[int16]int8
+	if unlocked {
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() { defer wg.Done(); peer, _ = loadAnswers(targetID) }()
+		go func() { defer wg.Done(); mine, _ = loadAnswers(me.ID) }()
+		wg.Wait()
+	} else {
+		peer, _ = loadAnswers(targetID)
+	}
 	if len(peer) == 0 {
 		return nil
 	}
@@ -139,7 +151,6 @@ func buildThreeView(me *model.User, targetID uint64, unlocked bool) *dto.ThreeVi
 		return info
 	}
 
-	mine, _ := loadAnswers(me.ID)
 	info.MyAnswers = make([]int8, 0, len(model.ThreeViewQuestions))
 	info.Answers = make([]int8, 0, len(model.ThreeViewQuestions))
 
