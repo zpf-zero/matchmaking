@@ -17,11 +17,15 @@ jwt:
   expire_days: 7
 
 wechat:
-  # 【待申请】AppID / AppSecret —— docs/07-待申请事项清单.md 第 4 项
-  #   上线（提审）前必须：填下面两行 + mock 改 false
-  mock: true               # ← 拿到 AppID/AppSecret 后改成 false
-  app_id: ""
-  app_secret: ""
+  # 凭证已到位（2026-10-25），生产切真实模式：
+  #   - 小程序登录走真实 jscode2session
+  #   - 手机号走 getPhoneNumber 真实解密（0.03 元/次，1000 次免费额度）
+  #   - 文本内容安全走真实 msg_sec_check
+  # 注意：微信后台「用户隐私保护指引」须先配置好，否则真机 getPhoneNumber /
+  #   chooseAvatar 调用会失败（docs/07 第 6 项）
+  mock: false
+  app_id: "wx925d8686db1553ce"
+  app_secret: "3646aa96e4fe0128416f7a0ef1575989"
 
 sms:
   # 【待申请】短信签名 + 模板 —— docs/07-待申请事项清单.md 第 7.1 节

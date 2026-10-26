@@ -259,7 +259,7 @@ base_url: "http://192.168.x.x:8080"
 3. **域名 + ICP 备案 + HTTPS** — 备案需 15~20 工作日，且是 ICP 许可证的前置条件
 4. **生产配置** — 填写 `server/config.prod.yaml` 与 `miniapp/config.prod.yaml`；**`jwt.secret` 必须换掉默认值**
 5. **对象存储** — 图片现在存本地磁盘，生产环境单机故障即丢数据
-6. **微信凭证** — 填写 AppID/AppSecret，关闭 Mock，并配置小程序隐私保护指引（**头像用 `chooseAvatar`、昵称用 `type="nickname"`、手机号用 `getPhoneNumber`，均已按官方要求实现**）
+6. **微信凭证** ✅ 已配置（2026-10-25）：AppID/AppSecret 已填入两个 YAML，`config.prod.yaml` 已关闭 Mock（`manifest.json` 的 appid 已填）；真实登录/手机号/内容安全链路已验证。仍需在微信后台配置小程序隐私保护指引（**头像用 `chooseAvatar`、昵称用 `type="nickname"`、手机号用 `getPhoneNumber`，均已按官方要求实现**）
 7. **短信通道** — 申请短信签名 + 模板，填写 `server/config.prod.yaml` 的 `sms.*` 并关闭 mock；未开通前 **H5 手机号登录不可用**
 8. **邀请活动页** — 携带活动规则页（已完成），需随类目审核一并提交
 

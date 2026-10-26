@@ -14,13 +14,12 @@ jwt:
   expire_days: 7
 
 wechat:
-  # 【待申请】AppID / AppSecret —— docs/07-待申请事项清单.md 第 4 项
-  #   需要微信「企业主体 + 微信认证」的小程序，个人主体不可用于婚恋类目
-  #   现在 mock: true，登录直接拿 code 当 openid、手机号手填、文本安全走本地词库
-  #   拿到凭证后：填下面两行 + mock 改 false + 重启。业务代码零改动
-  mock: true               # ← 拿到 AppID/AppSecret 后改成 false
-  app_id: ""
-  app_secret: ""
+  # 【已到位】AppID / AppSecret（2026-10-25）—— docs/07-待申请事项清单.md 第 4 项
+  #   dev 保持 mock: true —— 本地回归测试依赖「code 当 openid」的模拟链路，
+  #   切真实登录看 config.prod.yaml（那里 mock 已改 false）
+  mock: true
+  app_id: "wx925d8686db1553ce"
+  app_secret: "3646aa96e4fe0128416f7a0ef1575989"
 
 sms:
   # H5 手机号验证码登录。开发环境 mock: true —— 验证码走接口 dev_code 回传 +
