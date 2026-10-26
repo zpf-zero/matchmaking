@@ -3,7 +3,8 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationBarTitleText": "推荐"
+        "navigationBarTitleText": "推荐",
+        "enablePullDownRefresh": true
       }
     },
     {
@@ -88,9 +89,7 @@
     {
       "path": "pages/invite/index",
       "style": {
-        "navigationBarTitleText": "邀请有礼",
-        "enableShareAppMessage": true,
-        "enableShareTimeline": false
+        "navigationBarTitleText": "邀请有礼"
       }
     },
     {

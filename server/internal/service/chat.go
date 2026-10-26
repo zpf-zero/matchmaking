@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -31,42 +32,56 @@ type ConversationItem struct {
 	PeerOnline    bool       `json:"peer_online"`
 }
 
-// ListConversations 会话列表（= 配对列表）
+// convRow 会话 + 对方资料的扁平行。JOIN 一次取完，避免「先查会话再查用户」的两次远程往返
+type convRow struct {
+	ID            uint64
+	UserAID       uint64
+	UserBID       uint64
+	LastMessage   string
+	LastMessageAt *time.Time
+	AUnread       int
+	BUnread       int
+	MatchedAt     *time.Time
+	PeerNickname  string
+	PeerAvatar    string
+}
+
+// ListConversations 会话列表（= 配对列表）。
+// 会话与对方资料合成一条 JOIN 查询：这个接口每次进消息页都调，
+// 远程库上少一次往返就直接少 50~100ms。
 func ListConversations(me *model.User) ([]ConversationItem, error) {
-	var convs []model.Conversation
-	if err := db.DB.
-		Where("(user_a_id = ? OR user_b_id = ?) AND status = ?", me.ID, me.ID, model.ConvNormal).
-		Order("last_message_at DESC, id DESC").
-		Find(&convs).Error; err != nil {
+	var rows []convRow
+	if err := db.DB.Table("conversation c").
+		Select(`c.id, c.user_a_id, c.user_b_id, c.last_message, c.last_message_at,
+			c.a_unread, c.b_unread, c.matched_at,
+			u.nickname AS peer_nickname, u.avatar AS peer_avatar`).
+		Joins("JOIN user u ON u.id = IF(c.user_a_id = ?, c.user_b_id, c.user_a_id)", me.ID).
+		Where("(c.user_a_id = ? OR c.user_b_id = ?) AND c.status = ?",
+			me.ID, me.ID, model.ConvNormal).
+		Order("c.last_message_at DESC, c.id DESC").
+		Scan(&rows).Error; err != nil {
 		return nil, err
 	}
-	if len(convs) == 0 {
+	if len(rows) == 0 {
 		return []ConversationItem{}, nil
 	}
 
-	peerIDs := make([]uint64, 0, len(convs))
-	for _, c := range convs {
-		peerIDs = append(peerIDs, c.PeerID(me.ID))
-	}
-	var users []model.User
-	db.DB.Where("id IN ?", peerIDs).Find(&users)
-	userMap := make(map[uint64]model.User, len(users))
-	for _, u := range users {
-		userMap[u.ID] = u
-	}
-
-	items := make([]ConversationItem, 0, len(convs))
-	for _, c := range convs {
-		peerID := c.PeerID(me.ID)
-		peer := userMap[peerID]
+	items := make([]ConversationItem, 0, len(rows))
+	for _, c := range rows {
+		peerID := c.UserBID
+		unread := c.AUnread
+		if c.UserBID == me.ID {
+			peerID = c.UserAID
+			unread = c.BUnread
+		}
 		items = append(items, ConversationItem{
 			ID:            c.ID,
 			PeerID:        peerID,
-			PeerNickname:  peer.Nickname,
-			PeerAvatar:    peer.Avatar,
+			PeerNickname:  c.PeerNickname,
+			PeerAvatar:    c.PeerAvatar,
 			LastMessage:   c.LastMessage,
 			LastMessageAt: c.LastMessageAt,
-			Unread:        c.UnreadFor(me.ID),
+			Unread:        unread,
 			MatchedAt:     c.MatchedAt,
 			PeerOnline:    ws.IsOnline(peerID),
 		})
@@ -105,7 +120,9 @@ func SendMessage(me *model.User, convID uint64, msgType int8, content string) (*
 	if err != nil {
 		return nil, err
 	}
-	if content == "" {
+	// 只含空格 / 换行的消息在界面上就是一条空气泡，等同于空消息。
+	// 这里只判空，不改写 content：用户手打的前后空格保留原样
+	if strings.TrimSpace(content) == "" {
 		return nil, Biz("消息不能为空")
 	}
 	if len([]rune(content)) > 500 {
@@ -357,4 +374,3 @@ func PushLike(userID uint64, from *model.User) {
 		"id": from.ID, "nickname": from.Nickname, "avatar": from.Avatar,
 	})
 }
-

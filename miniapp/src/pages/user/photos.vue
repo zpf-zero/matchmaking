@@ -16,6 +16,8 @@ const pending = ref<string[]>([])
 const doneCount = ref(0)
 /** 已加载完成的图片 url，做加载占位 */
 const loaded = ref<Record<string, boolean>>({})
+/** 加载失败的图片 url。失败后换成明确提示，不留灰块、也不无限转圈 */
+const failed = ref<Record<string, boolean>>({})
 
 onShow(() => {
   store.fetchMe()
@@ -108,12 +110,17 @@ function preview(i: number) {
         :class="{ ready: loaded[p.url] }"
       >
         <image
+          v-if="!failed[p.url]"
           :src="p.url"
           class="img"
           mode="aspectFill"
           @click="preview(i)"
           @load="loaded[p.url] = true"
+          @error="failed[p.url] = true"
         />
+        <view v-else class="img-fail">
+          <text>图片加载失败</text>
+        </view>
         <view v-if="p.audit_status !== 1" class="mask">{{ auditText(p.audit_status) }}</view>
         <view class="del" @click="remove(p.id)">×</view>
       </view>
@@ -223,6 +230,18 @@ function preview(i: number) {
 .img {
   width: 100%;
   height: 100%;
+}
+
+/* 图片加载失败：给出明确提示，替代原来的灰块 */
+.img-fail {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $bg-subtle;
+  color: $text-placeholder;
+  font-size: $font-micro;
 }
 
 /* ---- 上传中的占位格 ---- */

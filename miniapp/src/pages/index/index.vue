@@ -180,6 +180,10 @@ function goRequirement() {
       资料未通过：{{ store.profile?.audit_remark }}
       <text class="notice-btn" @click="goEditProfile">去修改</text>
     </view>
+    <!-- 运营账号（管理员）没有性别，推荐流不做异性过滤，这里明确告知 -->
+    <view v-else-if="store.user && !store.user.gender" class="notice">
+      当前账号未设置性别，当前为全量浏览
+    </view>
 
     <view class="filter-bar" @click="goSearch">
       <view class="filter-copy">

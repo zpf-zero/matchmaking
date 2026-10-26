@@ -8,7 +8,14 @@ const msg = ref('')
 
 onLoad((q) => {
   code.value = Number(q?.code || 0)
-  msg.value = decodeURIComponent(q?.msg || '')
+  // 后端文案里可能带 %（如「已完成 100%」），直接 decode 会抛 URIError
+  // 把 onLoad 打断成白屏。解不开就按原文显示
+  const raw = q?.msg || ''
+  try {
+    msg.value = decodeURIComponent(raw)
+  } catch {
+    msg.value = raw
+  }
 })
 
 /** 状态 -> 展示配置。用 computed 而非普通函数：

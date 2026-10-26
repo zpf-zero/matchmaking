@@ -34,7 +34,15 @@ const icebreakers = [
 onLoad(async (q) => {
   convId.value = Number(q?.id || 0)
   peerId.value = Number(q?.peer || 0)
-  peerName.value = decodeURIComponent(q?.name || '聊天')
+  // 昵称里带 % 时（如「100%甜」）直接 decode 会抛 URIError，
+  // 后面的拉历史、标已读、连 WebSocket 全都不会执行，页面看起来就是空白。
+  // 解不开就用原串，宁可标题丑一点也不能白屏
+  const rawName = q?.name || '聊天'
+  try {
+    peerName.value = decodeURIComponent(rawName)
+  } catch {
+    peerName.value = rawName
+  }
   uni.setNavigationBarTitle({ title: peerName.value })
 
   await loadHistory()
@@ -304,6 +312,8 @@ async function doSend(content: string, msgType: number) {
 
 /** 图片消息的加载状态，用来做占位和淡入 */
 const imgLoaded = ref<Record<string, boolean>>({})
+/** 图片消息加载失败：否则占位层会一直转圈，用户以为还在加载 */
+const imgFailed = ref<Record<string, boolean>>({})
 
 function previewImage(url: string) {
   uni.previewImage({ urls: [url] })
@@ -402,11 +412,13 @@ function unmatch() {
                 class="img-msg"
                 mode="widthFix"
                 @load="imgLoaded[m.content] = true"
+                @error="imgFailed[m.content] = true"
                 @click="previewImage(m.content)"
                 @longpress="onLongPressMsg(m)"
               />
               <view v-if="!imgLoaded[m.content]" class="img-placeholder">
-                <view class="img-spinner"></view>
+                <view v-if="!imgFailed[m.content]" class="img-spinner"></view>
+                <text v-else class="img-fail">图片加载失败</text>
               </view>
             </view>
             <view v-else class="bubble" @longpress="onLongPressMsg(m)">
@@ -637,6 +649,12 @@ function unmatch() {
   border: 4rpx solid rgba(150, 62, 88, 0.2);
   border-top-color: $brand;
   animation: img-spin 720ms linear infinite;
+}
+
+/* 加载失败时的文案，替代一直转圈的 spinner */
+.img-fail {
+  font-size: $font-micro;
+  color: $text-placeholder;
 }
 
 @keyframes img-spin {

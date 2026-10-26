@@ -203,7 +203,38 @@ onHide(() => {
 </script>
 
 <style lang="scss">
-page,
+/*
+ * 主题变量挂在 page 上：小程序端只认 page，不认 :root。
+ * 注意不要把 :root 和 page 写进同一组选择器 —— WXSS 不支持 :root，
+ * 整条规则会被丢弃，小程序端主色/背景/边框/深色模式会全部失效。
+ * :root 只有 H5 需要（body 背景在 page 之外），用条件编译单独给。
+ */
+page {
+  --color-canvas: #f4f1f2;
+  --color-surface: #fcfaf9;
+  --color-surface-raised: #fffdfc;
+  --color-surface-subtle: #ece8e8;
+  --color-surface-accent: #f7edef;
+  --color-ink: #221f20;
+  --color-text-secondary: #5c5558;
+  --color-text-muted: #6b6266;
+  --color-text-faint: #746b6f;
+  --color-border: #ddd7d9;
+  --color-border-strong: #8f8589;
+  --color-accent: #963e58;
+  --color-accent-strong: #762b43;
+  --color-accent-soft: #f2e2e7;
+  --color-on-accent: #fffafb;
+  --color-success: #39705a;
+  --color-success-soft: #e4eee9;
+  --color-warning: #8a642c;
+  --color-warning-soft: #f3ead8;
+  --color-danger: #a43e3e;
+  --color-danger-soft: #f4e3e1;
+  --color-shadow: rgba(78, 43, 55, 0.055);
+}
+
+/* #ifdef H5 */
 :root {
   --color-canvas: #f4f1f2;
   --color-surface: #fcfaf9;
@@ -228,6 +259,8 @@ page,
   --color-danger-soft: #f4e3e1;
   --color-shadow: rgba(78, 43, 55, 0.055);
 }
+/* #endif */
+
 
 page {
   background-color: var(--color-canvas);
@@ -383,7 +416,32 @@ button:focus-visible {
 
 /* 支持系统主题的 H5 与微信基础库会自动切换 */
 @media (prefers-color-scheme: dark) {
-  page,
+  page {
+    --color-canvas: #191718;
+    --color-surface: #211f20;
+    --color-surface-raised: #282526;
+    --color-surface-subtle: #302c2e;
+    --color-surface-accent: #37262c;
+    --color-ink: #f5eff1;
+    --color-text-secondary: #d1c7ca;
+    --color-text-muted: #b7acb0;
+    --color-text-faint: #a79ca0;
+    --color-border: #3c3638;
+    --color-border-strong: #81767a;
+    --color-accent: #df8aa3;
+    --color-accent-strong: #eda0b5;
+    --color-accent-soft: #472b35;
+    --color-on-accent: #26151b;
+    --color-success: #83b59d;
+    --color-success-soft: #263b32;
+    --color-warning: #cfaa6f;
+    --color-warning-soft: #403626;
+    --color-danger: #dd8a85;
+    --color-danger-soft: #432c2a;
+    --color-shadow: rgba(0, 0, 0, 0.22);
+  }
+
+  /* #ifdef H5 */
   :root {
     --color-canvas: #191718;
     --color-surface: #211f20;
@@ -408,6 +466,7 @@ button:focus-visible {
     --color-danger-soft: #432c2a;
     --color-shadow: rgba(0, 0, 0, 0.22);
   }
+  /* #endif */
 }
 
 /* 全局通用类 */
@@ -554,6 +613,8 @@ button:focus-visible {
   }
 }
 
+/* WXSS 不支持 * 通配符选择器（基础库 3.16 直接编译报错），这块只给 H5 */
+/* #ifndef MP-WEIXIN */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -564,4 +625,5 @@ button:focus-visible {
     transition-duration: 1ms !important;
   }
 }
+/* #endif */
 </style>

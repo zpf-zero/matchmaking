@@ -15,6 +15,8 @@ const loading = ref(true)
 const userId = ref(0)
 const matchVisible = ref(false)
 const heartRef = ref<any>(null)
+/** 相册里加载失败的下标。失败后画「加载失败」占位，不留灰块 */
+const photoFailed = ref<Record<number, boolean>>({})
 
 onLoad(async (q) => {
   userId.value = Number(q?.id || 0)
@@ -22,11 +24,15 @@ onLoad(async (q) => {
     uni.showToast({ title: '参数错误', icon: 'none' })
     return
   }
-  await store.fetchDict()
-  // 题库用于渲染三观对照，必须在 load() 前就位（否则 buildThreeViewRows 拿到空题库）。
-  // 拉失败不阻断资料展示 —— 三观只是其中一块，不该让整页挂掉。
-  await store.fetchThreeViewQuestions().catch(() => {})
-  await load()
+  // 字典、题库、资料三件事互不依赖，并发发出去。
+  // 之前是串行 await，在远程接口上等于白等两个往返，页面骨架会多停 100~300ms。
+  await Promise.all([
+    store.fetchDict().catch(() => {}),
+    store.fetchThreeViewQuestions().catch(() => {}),
+    load(),
+  ])
+  // 题库可能比资料晚到，补算一次三观对照，避免整块空白
+  buildThreeViewRows()
 })
 
 async function load() {
@@ -312,14 +318,17 @@ function doBlock() {
     <view v-if="detail.photo_total > 0" class="card">
       <view class="card-title">相册</view>
       <view class="photos">
-        <image
-          v-for="(p, i) in detail.photos"
-          :key="i"
-          :src="p"
-          class="photo"
-          mode="aspectFill"
-          @click="previewPhoto(i)"
-        />
+        <template v-for="(p, i) in detail.photos" :key="i">
+          <image
+            v-if="!photoFailed[i]"
+            :src="p"
+            class="photo"
+            mode="aspectFill"
+            @click="previewPhoto(i)"
+            @error="photoFailed[i] = true"
+          />
+          <view v-else class="photo photo-fail"><text>加载失败</text></view>
+        </template>
         <!-- 被锁住的照片用占位格表示数量，不泄露图片本身 -->
         <view v-for="n in detail.locked_photo_count" :key="'lock' + n" class="photo photo-locked">
           <text class="lock-mark">🔒</text>
@@ -577,6 +586,15 @@ function doBlock() {
   height: 210rpx;
   border-radius: $radius;
   background: $bg-subtle;
+}
+
+/* 加载失败的照片：明确提示，避免用户以为是还在加载 */
+.photo-fail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $text-placeholder;
+  font-size: $font-micro;
 }
 
 /* 被权益锁住的照片：只占位不显示内容，避免通过缩略图泄露 */
