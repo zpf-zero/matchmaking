@@ -113,12 +113,48 @@ tail -f logs/server.log
 - 云安全组开放 **22** 和 **80**；8066 不用对公网开放，nginx 从 `127.0.0.1:8066` 转发。
 - **外部 MySQL 的白名单必须放行服务器公网 IP**，否则后端起不来。日志里会是连接超时。
 - `server/config.prod.yaml` 里有数据库明文口令，包和仓库都不要外发。
-- `jwt.secret` 目前还是 `hunjie-dev-secret-please-change-in-production`。换掉更安全，但换了之后所有已登录用户的 token 会失效，需要重新登录。
-- 微信登录还是 mock 模式（`wechat.mock: true`），openid 就是前端传的 code。
+- `jwt.secret` 已于 2026-10-26 由默认值换成 36 字节随机串（dev / prod 不同值）。**换完之后所有已登录用户 token 失效，需要重新登录一次。**
+- 微信登录生产已切真实模式（`wechat.mock: false`，2026-10-25），dev 仍为 mock：openid 就是前端传的 code。
 
 ## 六、换域名 / 上 HTTPS
 
-1. 改 `miniapp/config.prod.yaml` 的 `base_url`。
-2. 改 `server/config.prod.yaml` 的 `upload.base_url`。
-3. 重新 `deploy\build.ps1` 打包（nginx `server_name` 会自动跟着变，头像地址也会一并改写）。
-4. 上传部署。证书相关配置加在 `template/nginx/matchmaking.conf` 里。
+### 1. 证书放置位置（B 方案：文件形式）
+
+证书不随部署包分发，也不要提交进 git。由运维放到服务器固定目录：
+
+```
+/data/matchmaking/nginx/ssl/fullchain.pem   # 证书链（含中间证书）
+/data/matchmaking/nginx/ssl/privkey.pem     # 私钥
+```
+
+两个文件**都非空**时，`deploy.sh` 自动用 HTTPS 模板；缺任意一个就自动退回纯 HTTP，不会因为证书缺失让 nginx 起不来。
+
+### 2. 一条命令切域名 + 打包
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy\build.ps1 -BaseUrl https://liangyuan.bythedu.com
+```
+
+它会把两处地址一起改掉（只改一处会导致新上传的图片 404），nginx 的 `server_name` 自动跟着变：
+
+| 文件 | 字段 |
+|---|---|
+| `miniapp/config.prod.yaml` | `base_url` |
+| `server/config.prod.yaml` | `upload.base_url`（自动补 `/uploads`） |
+
+不带 `-BaseUrl` 就是普通打包，地址保持不变。
+
+### 3. nginx 模板有两份，别搞混
+
+| 模板 | 何时生效 |
+|---|---|
+| `template/nginx/matchmaking.conf` | 纯 HTTP，证书未就位时的兜底 |
+| `template/nginx/matchmaking-https.conf` | 证书就位后自动启用：80 只保留 `/health` 与 301 跳转，业务走 443 |
+
+不要直接改服务器上的 `/etc/nginx/sites-available/matchmaking.conf`，下次部署会被模板覆盖。
+
+### 4. 顺带要做的
+
+- 云安全组放行 **443**（现在只开了 22/80）
+- 微信小程序后台「服务器域名」四项（request / socket / uploadFile / downloadFile）都填这个域名
+- 证书到期前把新的两个文件覆盖到上面目录，重跑一次 `bash deploy.sh` 即可，不用改代码

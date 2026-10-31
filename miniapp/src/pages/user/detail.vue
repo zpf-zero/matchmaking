@@ -345,8 +345,11 @@ function doBlock() {
 
     <!-- 底部操作 -->
     <view class="actions">
-      <template v-if="detail.is_matched">
+      <template v-if="detail.is_matched && store.privateChatEnabled">
         <view class="btn-primary full" @click="goChat">去聊天</view>
+      </template>
+      <template v-else-if="detail.is_matched">
+        <view class="btn-plain full">已配对，私聊暂未开放</view>
       </template>
       <template v-else>
         <view class="btn-plain half" @click="handlePass">跳过</view>
@@ -367,6 +370,7 @@ function doBlock() {
       :my-avatar="store.user?.avatar"
       :peer-avatar="detail.avatar"
       :peer-name="detail.nickname"
+      :chat-enabled="store.privateChatEnabled"
       @chat="goChat"
       @close="matchVisible = false"
     />

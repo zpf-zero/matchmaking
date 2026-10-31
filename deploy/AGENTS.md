@@ -23,8 +23,8 @@ Windows 上 `deploy\build.ps1` 一条命令产出 zip → 传到 Ubuntu → root
 | 项 | 值 |
 |---|---|
 | 生产服务器 | `81.70.160.36`，前端 `/data/matchmaking/web`，后端 `/data/matchmaking/server`，后端端口 `8066`（8080 被同机 Docker 容器占用） |
-| 数据库 | `101.35.245.54:3306/marry_link_dev`，**MySQL 5.6.50**，账号密码在 `server/config.prod.yaml` |
-| 数据库共用 | 本地开发和线上是**同一个库**，改数据两边同时生效 |
+| 数据库 | 生产 `101.35.245.54:3306/marry_link`（账号 `marry_link`），**MySQL 5.6.50**，账号密码在 `server/config.prod.yaml` |
+| 数据库共用 | **2026-10-31 起已拆分**：生产用 `marry_link`，本地开发用 `marry_link_dev`（`server/config.dev.yaml`），不再是同一个库 |
 | 本地 dev | 前端 vite `:5173`，后端 `:8080` |
 | 微信登录 | mock 模式，openid 就是登录框里填的 code |
 | 构建机 | Windows + **Windows PowerShell 5.1**，Go 1.24.13（go.mod 要求 1.25，靠 `GOTOOLCHAIN=auto` 自动下载） |
@@ -36,7 +36,8 @@ Windows 上 `deploy\build.ps1` 一条命令产出 zip → 传到 Ubuntu → root
 | 前端 `miniapp/src/**` | ① 重跑 `build.ps1`（H5，传包 + `bash deploy.sh`）② **要提审小程序则另跑 `npm run build:mp-weixin`** |
 | 后端 `server/**` | 重跑 `build.ps1`，传包，root 执行 `bash deploy.sh`（脚本会先停旧进程） |
 | `deploy/template/**` | 重跑 `build.ps1`（模板是打包时才复制进产物的） |
-| `*.prod.yaml` 里的地址/域名 | 改完重跑 `build.ps1`，nginx `server_name` 和数据库里的头像地址会自动跟着变 |
+| `*.prod.yaml` 里的地址/域名 | 用 `build.ps1 -BaseUrl https://新域名` 改，它会同时改前端 base_url 和 upload.base_url 再打包；nginx `server_name` 自动跟着变 |
+| 只在服务器上放/换证书 | 放到 `/data/matchmaking/nginx/ssl/{fullchain.pem,privkey.pem}`，重跑 `bash deploy.sh`（不要改服务器上的 nginx 配置，会被模板覆盖） |
 | 只往数据库加了用户 | 重跑 `build.ps1` 把新头像打进包，否则线上是空头像 |
 | 只改 `deploy/README.md` / 本文件 | 什么都不用做 |
 
@@ -46,10 +47,15 @@ Windows 上 `deploy\build.ps1` 一条命令产出 zip → 传到 Ubuntu → root
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File deploy\build.ps1
+# 切域名（顺带打包）：
+powershell -ExecutionPolicy Bypass -File deploy\build.ps1 -BaseUrl https://liangyuan.bythedu.com
 ```
 
 产出 `deploy/ubuntu/`（目录）和 `deploy/matchmaking-ubuntu-amd64.zip`（约 9 MB），两者都 gitignore。
-参数：`-SkipAvatars` 离线打包 / `-SkipDbWrite` 只生成 SQL 不写库 / `-NoZip`。
+参数：`-SkipAvatars` 离线打包 / `-SkipDbWrite` 只生成 SQL 不写库 / `-NoZip` / `-BaseUrl <域名>`。
+
+nginx 模板有两份：`matchmaking.conf`（纯 HTTP）与 `matchmaking-https.conf`（HTTPS）。
+`deploy.sh` 按 `/data/matchmaking/nginx/ssl/` 里证书是否齐备自动二选一，两份都会打进包。
 
 脚本内部顺序：交叉编译 → H5 构建 → 头像归集 → 组装 → 打 zip → 校验条目分隔符。
 地址和数据库连接从 `miniapp/config.prod.yaml`（`base_url`）和 `server/config.prod.yaml`（`mysql.*`）读，**不要在脚本里硬编码**。
@@ -102,6 +108,8 @@ zip 顶层直接就是 `deploy.sh` / `web/` / `server/` / `nginx/` / `sql/`，�
 | `rsync --delete` 用在 `uploads/` | 删掉服务器上用户上传的图片 | `web/` 才用 `--delete`，`uploads/` 只合并 |
 | 不 `cd` 到 server 目录就启动 | `sensitive.Init("configs/sensitive_words.txt")` 是**相对路径**，词库加载不到（不报错，静默退回内置词库） | `start.sh` 里 `cd "$BASE_DIR"` |
 | 构建完忘了还原前端配置 | 本地 `npm run dev:h5` 打到生产地址 | `build.ps1` 末尾自动 `npm run config:dev` |
+| 证书还没放就上 HTTPS 模板 | `nginx -t` 失败，站点全挂 | `deploy.sh` 检测证书文件，缺了自动退回 HTTP 模板 |
+| 用 `http2 on;` 写配置 | Ubuntu 自带 nginx 1.18/1.20 不认，`nginx -t` 直接报错 | 统一用 `listen 443 ssl http2;`（1.25+ 只是 deprecation 警告，不影响运行） |
 
 ## 7. 本机工具的注意事项
 
@@ -117,9 +125,12 @@ zip 顶层直接就是 `deploy.sh` / `web/` / `server/` / `nginx/` / `sql/`，�
 
 ```bash
 curl http://127.0.0.1:8066/health        # 后端本身
-curl http://81.70.160.36/health          # 经 nginx
+curl http://81.70.160.36/health          # 经 nginx（HTTPS 模式下 80 仍保留 /health）
 curl -o /dev/null http://81.70.160.36/   # 前端首页
 curl -o /dev/null http://81.70.160.36/uploads/avatar/seed/seed_m01.png   # 头像
+# 上了证书之后再加两条：
+curl -I https://<域名>/                   # 应为 200
+curl -I http://<域名>/                    # 应为 301 → https
 ```
 
 打包侧值得确认的：
@@ -138,6 +149,6 @@ Select-String -Path deploy\ubuntu\web\assets\*.js -Pattern 'localhost:8080' -Lis
 ## 9. 别做的事
 
 - 别把 `server/config.prod.yaml` 或部署包发给无关的人 —— 里面有数据库明文口令。
-- 别擅自改 `jwt.secret` —— 改了所有已登录用户 token 失效。它现在还是默认值，要换得先跟用户确认。
+- `jwt.secret` 已于 2026-10-26 换成随机串（dev / prod 不同值，用户确认过）。**再改一次仍会让所有已登录用户 token 失效**，非必要不要再动；要动先跟用户确认。
 - 别在没确认的情况下对生产库做 DELETE / UPDATE。这个库和本地开发共用。
 - 别把 `deploy/ubuntu/` 提交进 git。

@@ -45,6 +45,13 @@ onLoad(async (q) => {
   }
   uni.setNavigationBarTitle({ title: peerName.value })
 
+  // 私聊开关关闭时不允许停在聊天页（深链/旧缓存进入都会走到这里）
+  if (!store.privateChatEnabled) {
+    uni.showToast({ title: '私聊功能暂未开放', icon: 'none' })
+    setTimeout(() => uni.navigateBack(), 800)
+    return
+  }
+
   await loadHistory()
   await markRead()
 
@@ -79,7 +86,8 @@ async function loadHistory(before = 0) {
     messages.value = before ? [...list, ...messages.value] : list
     if (!before) await scrollToBottom()
   } catch {
-    // 已提示
+    // 私聊开关关闭时后端返回 403（提示已由 request 层给出），直接退出页面
+    if (!store.privateChatEnabled) setTimeout(() => uni.navigateBack(), 600)
   } finally {
     loadingMore.value = false
   }

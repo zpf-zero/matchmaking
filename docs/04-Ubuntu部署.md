@@ -136,4 +136,4 @@ sudo tail -f /var/log/nginx/matchmaking.error.log
 
 ## 七、安全提醒
 
-`server/config.prod.yaml` 含数据库明文口令，部署包和仓库都不要外发。`jwt.secret` 目前仍是默认值，换掉更安全，代价是所有已登录用户需要重新登录。
+`server/config.prod.yaml` 含数据库明文口令，部署包和仓库都不要外发。`jwt.secret` 已于 2026-10-26 换成随机串（与开发配置不同值），更换时所有已登录用户需要重新登录一次，现已完成。

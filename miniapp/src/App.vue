@@ -54,6 +54,18 @@ function setupGlobalNotify(store: ReturnType<typeof useUserStore>) {
   ws.on('match', (data: any) => {
     store.fetchUnread()
     const name = data?.peer?.nickname || '对方'
+
+    // 私聊开关关闭时不提供「去聊天」入口，只告知配对结果
+    if (!store.privateChatEnabled) {
+      uni.showModal({
+        title: '配对成功',
+        content: `你和 ${name} 互相喜欢。私聊功能暂未开放，开放后会在消息页通知你`,
+        showCancel: false,
+        confirmText: '知道了',
+      })
+      return
+    }
+
     uni.showModal({
       title: '配对成功',
       content: `你和 ${name} 互相喜欢，现在可以聊天了`,

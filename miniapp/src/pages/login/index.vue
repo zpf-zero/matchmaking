@@ -175,7 +175,7 @@ function openAgreement(type: 'user' | 'privacy') {
     <view class="header">
       <view class="brand-row enter" style="animation-delay: 40ms">
         <view class="logo">缘</view>
-        <view class="title">缘来婚恋</view>
+        <view class="title">良缘天合</view>
       </view>
       <view class="statement">
         <!-- 品牌主张两行错峰升起，是全页唯一的「展演」时刻 -->
@@ -303,7 +303,7 @@ function openAgreement(type: 'user' | 'privacy') {
     </view>
 
     <view class="footer enter" style="animation-delay: 640ms">
-      <text>仅向 18 周岁以上单身人士提供服务</text>
+      <text>仅向 18 周岁以上人士提供服务</text>
       <text class="footer-sep"></text>
       <text>资料人工审核</text>
     </view>

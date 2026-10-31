@@ -29,7 +29,7 @@ const copied = ref(false)
 onShareAppMessage(() => {
   const code = info.value?.code || ''
   return {
-    title: '缘来婚恋 · 真实资料人工审核，认真认识一个人',
+    title: '良缘天合 · 真实资料人工审核，认真认识一个人',
     path: code ? `/pages/login/index?invite=${code}` : '/pages/login/index',
   }
 })
@@ -255,7 +255,7 @@ const statusMap: Record<number, string> = {
     <view class="card">
       <view class="section-title">邀请记录</view>
       <view v-if="!info?.records?.length" class="empty-tip">
-        还没有邀请记录。把邀请码发给身边单身的朋友吧。
+        还没有邀请记录。把邀请码发给身边的朋友吧。
       </view>
       <view v-for="(r, i) in info?.records || []" :key="i" class="record">
         <view class="rec-copy">

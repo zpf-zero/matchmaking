@@ -14,8 +14,10 @@ const props = withDefaults(
     myAvatar?: string
     peerAvatar?: string
     peerName?: string
+    /** 私聊开关。关闭时不出现「去聊天」，只留一个「知道了」 */
+    chatEnabled?: boolean
   }>(),
-  { myAvatar: '', peerAvatar: '', peerName: '对方' }
+  { myAvatar: '', peerAvatar: '', peerName: '对方', chatEnabled: true },
 )
 
 const emit = defineEmits<{ chat: []; close: [] }>()
@@ -89,12 +91,20 @@ function initialOf(name: string) {
 
       <view class="copy">
         <view class="title">配对成功</view>
-        <view class="sub">你和 {{ peerName }} 互相喜欢，现在可以开始聊天了</view>
+        <view v-if="chatEnabled" class="sub">
+          你和 {{ peerName }} 互相喜欢，现在可以开始聊天了
+        </view>
+        <view v-else class="sub">
+          你和 {{ peerName }} 互相喜欢，私聊功能开放后就能开始聊天
+        </view>
       </view>
 
       <view class="acts">
-        <view class="act-primary" @click="emit('chat')">去聊天</view>
-        <view class="act-plain" @click="emit('close')">稍后</view>
+        <template v-if="chatEnabled">
+          <view class="act-primary" @click="emit('chat')">去聊天</view>
+          <view class="act-plain" @click="emit('close')">稍后</view>
+        </template>
+        <view v-else class="act-primary" @click="emit('close')">知道了</view>
       </view>
     </view>
   </view>

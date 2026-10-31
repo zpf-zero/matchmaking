@@ -10,7 +10,9 @@ mysql:
   database: marry_link_dev
 
 jwt:
-  secret: "hunjie-dev-secret-please-change-in-production"
+  # 本地开发专用密钥（2026-10-26 由默认值换成了随机串）。
+  # 与生产密钥不同：本地 token 拿到生产环境一律失效，反之亦然。
+  secret: "q3gc9gbq_R2OJ85AttLqlCPqxWSC_7ydd7wKz9Lwx58hE0Wd"
   expire_days: 7
 
 wechat:
@@ -29,7 +31,7 @@ sms:
   provider: "aliyun"
   access_key_id: ""
   access_key_secret: ""
-  sign_name: ""            # 短信签名，如「缘来婚恋」
+  sign_name: ""            # 短信签名，如「良缘天合」
   template_code: ""        # 模板变量名必须是 code，如 {"code":"123456"}
   region_id: "cn-hangzhou"
   code_ttl_seconds: 300
@@ -41,6 +43,10 @@ upload:
   dir: "./uploads"
   base_url: "http://localhost:8080/uploads"
   max_size_mb: 5
+
+# 功能远程开关（生产在 config.prod.yaml 里配，当前生产为关闭）
+features:
+  private_chat: true
 
 admin:
   # 白名单内的 openid 登录时自动置为超级管理员（role=4）

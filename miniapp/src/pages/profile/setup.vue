@@ -397,8 +397,8 @@ async function onGetPhoneNumber(e: any) {
 // ---------- 分步校验 ----------
 function validateStep(n: number): string {
   if (n === 1) {
-    if (!form.phone) return '请填写手机号'
-    if (!/^1[3-9]\d{9}$/.test(form.phone)) return '手机号格式不正确'
+    // 手机号选填：留空直接放行，填了才校验格式
+    if (form.phone && !/^1[3-9]\d{9}$/.test(form.phone)) return '手机号格式不正确'
     if (!form.avatar) return '请上传头像'
     if (form.nickname.length < 2) return '昵称至少 2 个字'
     if (!form.gender) return '请选择性别'
@@ -430,8 +430,8 @@ async function next() {
     return
   }
 
-  // 手机号在第一步就绑定，后面步骤失败也不用重填
-  if (step.value === 1 && form.phone !== store.phone) {
+  // 手机号在第一步就绑定，后面步骤失败也不用重填（选填：留空则跳过）
+  if (step.value === 1 && form.phone && form.phone !== store.phone) {
     try {
       await authApi.bindPhone({ phone: form.phone })
       store.phone = form.phone
@@ -511,8 +511,8 @@ async function jump(n: number) {
       return
     }
   }
-  // 跳过第 1 步时，手机号绑定这件事不能漏（原本挂在 next() 里）
-  if (step.value === 1 && form.phone !== store.phone) {
+  // 跳过第 1 步时，手机号绑定这件事不能漏（原本挂在 next() 里）；选填：留空则跳过
+  if (step.value === 1 && form.phone && form.phone !== store.phone) {
     try {
       await authApi.bindPhone({ phone: form.phone })
       store.phone = form.phone
@@ -558,8 +558,8 @@ async function jump(n: number) {
 
       <!-- 第 1 步 -->
       <view v-show="step === 1" class="card">
-      <FormRow label="手机号" required>
-        <!-- 真实模式走微信一键授权；mock/H5 手填。两条路径都落同一个 /auth/bind-phone -->
+      <FormRow label="手机号">
+        <!-- 选填。真实模式走微信一键授权；mock/H5 手填。两条路径都落同一个 /auth/bind-phone -->
         <button
           v-if="canWxAuth && !form.phone"
           class="wx-phone-btn"
@@ -574,7 +574,7 @@ async function jump(n: number) {
           type="number"
           maxlength="11"
           :disabled="phoneLocked"
-          placeholder="用于账号安全，不会公开"
+          placeholder="选填，用于账号安全，不会公开"
           placeholder-class="ph"
         />
       </FormRow>

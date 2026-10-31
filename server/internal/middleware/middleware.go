@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"hunjie/internal/config"
 	"hunjie/internal/db"
 	"hunjie/internal/model"
 	"hunjie/internal/pkg/jwt"
@@ -116,6 +117,21 @@ func RequireActive() gin.HandlerFunc {
 		default:
 			c.Next()
 		}
+	}
+}
+
+// RequirePrivateChat 私聊功能远程开关。
+//
+// 开关为 false 时整块拒绝会话/消息接口 —— 前端虽然会隐藏入口，
+// 但用户可以直接构造请求，真正生效的拦截必须在这里。
+// 返回 403 让前端把「功能未开放」和「没有权限」区分开。
+func RequirePrivateChat() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !config.C.Features.PrivateChat {
+			response.Abort(c, response.CodeForbidden, "私聊功能暂未开放")
+			return
+		}
+		c.Next()
 	}
 }
 

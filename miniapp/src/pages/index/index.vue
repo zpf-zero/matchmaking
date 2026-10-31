@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { onShow, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 import UserCardItem from '@/components/UserCardItem.vue'
 import MatchSuccessOverlay from '@/components/MatchSuccessOverlay.vue'
+import AppTabBar from '@/components/AppTabBar.vue'
 import { discoverApi, interactionApi } from '@/api'
 import type { UserCard } from '@/api/types'
 import { Status, useUserStore } from '@/stores/user'
@@ -43,6 +44,8 @@ function ensureFirstLoad() {
 }
 
 onShow(() => {
+  // 底部导航改为自绘（「消息」项受私聊开关控制），原生那条全程藏着
+  uni.hideTabBar({ animation: false, fail: () => {} })
   ensureFirstLoad()
   store.fetchUnread()
 })
@@ -237,16 +240,40 @@ function goRequirement() {
       :my-avatar="store.user?.avatar"
       :peer-avatar="matchPeer?.avatar"
       :peer-name="matchPeer?.nickname || '对方'"
+      :chat-enabled="store.privateChatEnabled"
       @chat="goMatchedChat"
       @close="matchVisible = false"
     />
+
   </view>
+
+  <!-- 放在 .page 之外：.page 有入场动画（终态保留 transform），
+       会成为 fixed 的定位祖先，把它沉到内容末尾 -->
+  <AppTabBar class="tabbar-host" active="index" />
 </template>
 
 <style lang="scss" scoped>
 .page {
   min-height: calc(100dvh - 188rpx);
-  padding: 24rpx 24rpx 48rpx;
+  /* 底部 100rpx 自绘 tabBar + 安全区，避免最后一张卡片被挡住 */
+  padding: 24rpx 24rpx calc(48rpx + 100rpx + env(safe-area-inset-bottom));
+}
+
+/*
+ * 把自绘 tabBar 的「宿主节点」钉在视口底部。
+ * 前提是它必须放在 .page 外面：.page 有入场动画，终态保留 transform，
+ * 会把自己变成 fixed 的定位祖先，导航就沉到内容末尾了。
+ */
+.tabbar-host {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 200;
+  /* 宽屏 H5 上跟随 .page 的 540px 单列画布，不拉成通栏 */
+  max-width: 540px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .notice {

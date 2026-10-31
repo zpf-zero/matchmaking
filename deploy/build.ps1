@@ -22,14 +22,24 @@
 .PARAMETER NoZip
   只生成 deploy/ubuntu/ 目录，不打 zip。
 
+.PARAMETER BaseUrl
+  顺带切换站点域名。传了它就会先把两个配置文件改成一致，再打包：
+    miniapp/config.prod.yaml  -> base_url
+    server/config.prod.yaml   -> upload.base_url（自动补 /uploads）
+  例：-BaseUrl https://liangyuan.example.com
+
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File deploy\build.ps1
+
+.EXAMPLE
+  powershell -ExecutionPolicy Bypass -File deploy\build.ps1 -BaseUrl https://liangyuan.example.com
 #>
 [CmdletBinding()]
 param(
   [switch]$SkipAvatars,
   [switch]$SkipDbWrite,
-  [switch]$NoZip
+  [switch]$NoZip,
+  [string]$BaseUrl
 )
 
 $ErrorActionPreference = 'Stop'
@@ -163,6 +173,31 @@ $MiniappProdYaml = Join-Path $MiniappDir 'config.prod.yaml'
 $ServerProdYaml  = Join-Path $ServerDir  'config.prod.yaml'
 foreach ($f in @($MiniappProdYaml, $ServerProdYaml)) {
   if (-not (Test-Path $f)) { throw "缺少配置文件：$f" }
+}
+
+# ---------------------------------------------------------------- 切换域名
+# 传 -BaseUrl 时才执行。两处地址必须同时改，只改一处会让新上传的图片 404。
+# 严格用 UTF-8 读写（按原文件是否带 BOM 决定写回形式），
+# 不要用 Get-Content | Set-Content —— 会把中文注释写乱。
+function Set-YamlBaseUrl([string]$Path, [string]$Pattern, [string]$Replacement, [string]$Label) {
+  $bytes = [System.IO.File]::ReadAllBytes($Path)
+  $hasBom = ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)
+  $text = [System.IO.File]::ReadAllText($Path)
+  $new = [regex]::Replace($text, $Pattern, $Replacement)
+  if ($new -eq $text) { throw "$Path 里没找到 $Label，未做任何修改" }
+  [System.IO.File]::WriteAllText($Path, $new, (New-Object System.Text.UTF8Encoding($hasBom)))
+}
+
+if ($BaseUrl) {
+  $target = $BaseUrl.TrimEnd('/')
+  if ($target -notmatch '^https?://[^/]+$') {
+    throw "-BaseUrl 需要是 http(s)://域名[:端口] 形式（不带路径），收到：$BaseUrl"
+  }
+  Step "切换站点地址 -> $target"
+  Set-YamlBaseUrl $MiniappProdYaml '(?m)^base_url:.*$' "base_url: `"$target`"" 'base_url'
+  # 替换串用单引号拼接：PowerShell 双引号里 ${1} 会被当成变量展开，正则分组会丢
+  Set-YamlBaseUrl $ServerProdYaml  '(?m)^(\s+)base_url:.*$' ('${1}base_url: "' + $target + '/uploads"') 'upload.base_url'
+  Ok "前端 base_url 与上传域名已同步改为 $target"
 }
 
 $BaseUrl = Read-YamlValue $MiniappProdYaml 'base_url'
@@ -336,14 +371,18 @@ Copy-AsUnixText (Join-Path $TemplateDir 'deploy.sh') (Join-Path $OutDir 'deploy.
 foreach ($s in @('start.sh', 'stop.sh', 'restart.sh', 'status.sh')) {
   Copy-AsUnixText (Join-Path $TemplateDir "server\$s") (Join-Path $OutDir "server\$s")
 }
-Copy-AsUnixText (Join-Path $TemplateDir 'nginx\matchmaking.conf') `
-                (Join-Path $OutDir 'nginx\matchmaking.conf') `
-                @{ '__SERVER_NAME__' = $ServerName }
+# nginx 有两份模板：纯 HTTP 与 HTTPS。deploy.sh 会按证书文件是否就位自动二选一，
+# 两份都要打进包，且都要把 server_name 填掉
+foreach ($conf in @('matchmaking.conf', 'matchmaking-https.conf')) {
+  Copy-AsUnixText (Join-Path $TemplateDir "nginx\$conf") `
+                  (Join-Path $OutDir "nginx\$conf") `
+                  @{ '__SERVER_NAME__' = $ServerName }
+}
 Ok "nginx server_name 已填为 $ServerName"
 
 $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm'
 $readme = @"
-缘来婚恋 · Ubuntu H5 部署包
+良缘天合 · Ubuntu H5 部署包
 打包时间：$stamp
 站点地址：$BaseUrl
 

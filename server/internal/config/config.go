@@ -11,13 +11,24 @@ import (
 var C Config
 
 type Config struct {
-	Server ServerConfig `mapstructure:"server"`
-	MySQL  MySQLConfig  `mapstructure:"mysql"`
-	JWT    JWTConfig    `mapstructure:"jwt"`
-	WeChat WeChatConfig `mapstructure:"wechat"`
-	SMS    SMSConfig    `mapstructure:"sms"`
-	Upload UploadConfig `mapstructure:"upload"`
-	Admin  AdminConfig  `mapstructure:"admin"`
+	Server   ServerConfig   `mapstructure:"server"`
+	MySQL    MySQLConfig    `mapstructure:"mysql"`
+	JWT      JWTConfig      `mapstructure:"jwt"`
+	WeChat   WeChatConfig   `mapstructure:"wechat"`
+	SMS      SMSConfig      `mapstructure:"sms"`
+	Upload   UploadConfig   `mapstructure:"upload"`
+	Admin    AdminConfig    `mapstructure:"admin"`
+	Features FeaturesConfig `mapstructure:"features"`
+}
+
+// FeaturesConfig 功能远程开关。
+//
+// 只放「运营随时可能整块关掉」的功能，不放业务参数 ——
+// 开关值由配置文件决定，改完重启进程生效，前端不提供任何开关入口。
+type FeaturesConfig struct {
+	// PrivateChat 私聊聊天总开关。
+	// false：后端拒绝会话/消息相关接口，前端隐藏消息列表、聊天入口与配对后的「去聊天」
+	PrivateChat bool `mapstructure:"private_chat"`
 }
 
 type ServerConfig struct {

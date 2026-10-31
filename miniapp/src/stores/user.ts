@@ -69,6 +69,11 @@ interface State {
   /** 相册上限。来自 /common/config，与后端 MaxPhotoNum 同源 */
   maxPhotoNum: number
   /**
+   * 私聊聊天远程开关。来自 /common/config，默认 true ——
+   * 配置还没拉回来时不要把功能藏了，否则冷启动会闪一下「未开放」
+   */
+  privateChat: boolean
+  /**
    * 已结算但尚未查看的邀请数。好友过审的那一刻双方权益到账，
    * 邀请人却多半不在场 —— 这个数字驱动「我的」页「邀请有礼」红点，
    * 进邀请页即清除（POST /invite/seen）
@@ -94,6 +99,7 @@ export const useUserStore = defineStore('user', {
     threeViewQuestions: [],
     freePhotoLimit: 3,
     maxPhotoNum: 9,
+    privateChat: true,
     inviteUnseen: 0,
   }),
 
@@ -130,6 +136,8 @@ export const useUserStore = defineStore('user', {
      * 「快到期了要不要续」的咨询工单（见 docs/08-权益体系重构方案.md 4.4）。
      */
     isVip: (s) => (s.user?.vip_level ?? 0) >= VipLevelUnlocked,
+    /** 私聊聊天是否开放。关闭时消息列表、聊天按钮、配对后「去聊天」全部隐藏 */
+    privateChatEnabled: (s) => s.privateChat,
   },
 
   actions: {
@@ -185,6 +193,8 @@ export const useUserStore = defineStore('user', {
         this.mockMode = cfg.mock_mode
         this.freePhotoLimit = cfg.free_photo_limit ?? 3
         this.maxPhotoNum = cfg.max_photo_num ?? 9
+        // 老后端没有这个字段时按「开放」处理，避免升级顺序不当把聊天误关
+        this.privateChat = cfg.private_chat !== false
       } catch {
         this.mockMode = false
         this.configError = true

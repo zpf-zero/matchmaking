@@ -247,6 +247,11 @@ export interface ClientConfig {
   max_photo_num: number
   /** 免费可见照片张数，用于渲染「还有 N 张」的解锁提示 */
   free_photo_limit: number
+  /**
+   * 私聊聊天远程开关。false 时隐藏消息列表与所有聊天入口。
+   * 开关只在服务端配置里改，前端不提供任何设置界面。
+   */
+  private_chat?: boolean
 }
 
 export interface Conversation {

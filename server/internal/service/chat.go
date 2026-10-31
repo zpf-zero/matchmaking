@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"hunjie/internal/config"
 	"hunjie/internal/db"
 	"hunjie/internal/model"
 	"hunjie/internal/pkg/logger"
@@ -311,6 +312,14 @@ func handleWSMessage(userID uint64, msgType string, data json.RawMessage) {
 		}
 		if err := json.Unmarshal(data, &req); err != nil {
 			ws.Push(userID, "error", map[string]string{"message": "参数格式错误"})
+			return
+		}
+
+		// WS 是发送消息的第二条通道，HTTP 路由上的开关拦不到这里，必须单独判一次
+		if !config.C.Features.PrivateChat {
+			ws.Push(userID, "error", map[string]any{
+				"message": "私聊功能暂未开放", "temp_id": req.TempID,
+			})
 			return
 		}
 

@@ -23,7 +23,7 @@
       <view class="p">
         把你的专属邀请码告诉朋友，朋友在填写资料时填写该邀请码。当朋友完成注册、
         完善资料并通过平台人工审核后，你和朋友双方各解锁
-        <text class="em">「缘来婚恋」完整资料查看权益（永久有效）</text>。
+        <text class="em">「良缘天合」完整资料查看权益（永久有效）</text>。
       </view>
       <view class="p">
         <text class="em">权益一次解锁即完整拥有。</text>邀请一位好友通过审核即可获得全部权益，
@@ -98,7 +98,7 @@
       </view>
     </view>
 
-    <view class="ft">缘来婚恋 · 认真认识，再决定心意</view>
+    <view class="ft">良缘天合 · 认真认识，再决定心意</view>
   </view>
 </template>
 

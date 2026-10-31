@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { onShow, onUnload } from '@dcloudio/uni-app'
 import UserAvatar from '@/components/UserAvatar.vue'
 import SwipeCell from '@/components/SwipeCell.vue'
+import AppTabBar from '@/components/AppTabBar.vue'
 import { chatApi } from '@/api'
 import type { Conversation } from '@/api/types'
 import { useUserStore } from '@/stores/user'
@@ -24,6 +25,13 @@ function onNewMessage() {
  * 这里改为「等待中不做判断」，等 store 就绪后由 watch 补一次。
  */
 function ensureLoad() {
+  // 私聊开关关闭：不请求会话列表（后端会 403），页面只留互动入口
+  if (!store.privateChatEnabled) {
+    list.value = []
+    loaded.value = true
+    if (store.canInteract) store.fetchUnread()
+    return
+  }
   if (!store.canInteract) {
     // 用户确实还没通过审核 —— 这才是真的空状态
     if (store.meLoaded) loaded.value = true
@@ -34,6 +42,8 @@ function ensureLoad() {
 }
 
 onShow(() => {
+  // 底部导航改为自绘（「消息」项受私聊开关控制），原生那条全程藏着
+  uni.hideTabBar({ animation: false, fail: () => {} })
   ensureLoad()
   ws.on('message', onNewMessage)
   ws.on('match', onNewMessage)
@@ -45,6 +55,12 @@ watch(
   (ok) => {
     if (ok) ensureLoad()
   },
+)
+
+// 配置比页面晚到（冷启动）或运营中途开关了私聊，都要重新判定一次
+watch(
+  () => store.privateChatEnabled,
+  () => ensureLoad(),
 )
 
 onUnload(() => {
@@ -69,6 +85,12 @@ async function load() {
     list.value = await chatApi.conversations()
     loadFailed.value = false
   } catch {
+    // 私聊开关关闭时后端会 403，这不是「加载失败」，交给页面的未开放提示
+    if (!store.privateChatEnabled) {
+      list.value = []
+      loadFailed.value = false
+      return
+    }
     // 已提示。必须标记失败：否则会落到「还没有新的配对」空态，
     // 把「没加载成功」说成「确实没有」，用户会以为真没人找过自己
     loadFailed.value = true
@@ -164,6 +186,15 @@ function timeText(t: string | null) {
       </view>
     </view>
 
+    <!-- 私聊关闭：整块隐藏「我的配对」，只留上面的互动入口 -->
+    <view v-if="!store.privateChatEnabled" class="closed-note">
+      <view class="closed-title">私聊功能暂未开放</view>
+      <view class="closed-copy">
+        可以先通过「谁喜欢我」「我喜欢的」了解彼此，私聊开放后会第一时间通知你。
+      </view>
+    </view>
+
+    <template v-else>
     <view class="section-title">我的配对</view>
 
     <view v-if="showSkeleton" class="conversation-skeleton" aria-label="正在加载消息">
@@ -233,13 +264,33 @@ function timeText(t: string | null) {
       <view class="empty-copy">互相喜欢后，你们就可以从这里开始聊天。</view>
       <view class="empty-action" @click="goBrowse">去看看推荐</view>
     </view>
+    </template>
+
   </view>
+
+  <!-- 放在 .page 之外：.page 有入场动画（终态保留 transform），
+       会成为 fixed 的定位祖先，把它沉到内容末尾 -->
+  <AppTabBar class="tabbar-host" active="message" />
 </template>
 
 <style lang="scss" scoped>
 .page {
   min-height: calc(100dvh - 188rpx);
-  padding: 24rpx 24rpx 48rpx;
+  /* 底部 100rpx 自绘 tabBar + 安全区，避免最后一条会话被挡住 */
+  padding: 24rpx 24rpx calc(48rpx + 100rpx + env(safe-area-inset-bottom));
+}
+
+/* 宿主节点钉在视口底部（必须放在 .page 外面，否则被入场动画的 transform 劫持定位） */
+.tabbar-host {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 200;
+  /* 宽屏 H5 上跟随 .page 的 540px 单列画布，不拉成通栏 */
+  max-width: 540px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .entries {
@@ -312,6 +363,28 @@ function timeText(t: string | null) {
   color: $text-on-accent;
   font-size: $font-micro;
   text-align: center;
+}
+
+/* 私聊未开放时的说明块，替代「我的配对」列表 */
+.closed-note {
+  padding: 40rpx 32rpx;
+  background: $bg-raised;
+  border: 1rpx solid $border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-card;
+}
+
+.closed-title {
+  font-size: $font-lead;
+  font-weight: 600;
+  color: $text-main;
+  margin-bottom: 12rpx;
+}
+
+.closed-copy {
+  font-size: $font-mid;
+  color: $text-weak;
+  line-height: 1.7;
 }
 
 .section-title {

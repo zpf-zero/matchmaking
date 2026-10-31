@@ -279,9 +279,7 @@ func SubmitAudit(u *model.User) error {
 	if u.Status == model.StatusAuditing {
 		return Biz("资料正在审核中，请耐心等待")
 	}
-	if u.Phone == "" {
-		return Biz("请先绑定手机号")
-	}
+	// 手机号改为选填，不再作为提交审核的硬性前置条件
 
 	var p model.UserProfile
 	if err := db.DB.Where("user_id = ?", u.ID).First(&p).Error; err != nil {

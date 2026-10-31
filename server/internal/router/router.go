@@ -91,12 +91,17 @@ func Setup() *gin.Engine {
 		active.POST("/interaction/pass", handler.Pass)
 		active.DELETE("/interaction/like/:id", handler.Unlike)
 
-		active.GET("/conversation/list", handler.ListConversations)
-		active.DELETE("/conversation/:id", handler.CloseConversation)
-		active.GET("/message/list", handler.ListMessages)
-		active.POST("/message/send", handler.SendMessage)
-		active.PUT("/message/read", handler.ReadMessages)
-		active.PUT("/message/recall", handler.RecallMessage)
+		// 私聊功能放在单独分组：远程开关关闭时整块 403，
+		// 喜欢/配对等互动接口不受影响
+		chat := active.Group("", middleware.RequirePrivateChat())
+		{
+			chat.GET("/conversation/list", handler.ListConversations)
+			chat.DELETE("/conversation/:id", handler.CloseConversation)
+			chat.GET("/message/list", handler.ListMessages)
+			chat.POST("/message/send", handler.SendMessage)
+			chat.PUT("/message/read", handler.ReadMessages)
+			chat.PUT("/message/recall", handler.RecallMessage)
+		}
 	}
 
 	// WebSocket。小程序握手无法带自定义 header，token 从 query 取

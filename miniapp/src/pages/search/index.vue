@@ -2,6 +2,7 @@
 import { computed, reactive, ref } from 'vue'
 import { onShow, onReachBottom } from '@dcloudio/uni-app'
 import UserCardItem from '@/components/UserCardItem.vue'
+import AppTabBar from '@/components/AppTabBar.vue'
 import RegionPicker from '@/components/RegionPicker.vue'
 import RangePicker from '@/components/RangePicker.vue'
 import { discoverApi } from '@/api'
@@ -97,6 +98,8 @@ if (saved && typeof saved === 'object') {
 }
 
 onShow(() => {
+  // 底部导航改为自绘（「消息」项受私聊开关控制），原生那条全程藏着
+  uni.hideTabBar({ animation: false, fail: () => {} })
   store.fetchDict()
 })
 
@@ -317,13 +320,32 @@ onReachBottom(() => {
       没有符合条件的人，试试放宽一些条件
     </view>
     <view v-else-if="list.length && finished" class="end">已经到底啦</view>
+
   </view>
+
+  <!-- 放在 .page 之外：.page 有入场动画（终态保留 transform），
+       会成为 fixed 的定位祖先，把它沉到内容末尾 -->
+  <AppTabBar class="tabbar-host" active="search" />
 </template>
 
 <style lang="scss" scoped>
 .page {
   min-height: calc(100dvh - 188rpx);
-  padding: 24rpx 24rpx 48rpx;
+  /* 底部 100rpx 自绘 tabBar + 安全区，避免最后一张卡片被挡住 */
+  padding: 24rpx 24rpx calc(48rpx + 100rpx + env(safe-area-inset-bottom));
+}
+
+/* 宿主节点钉在视口底部（必须放在 .page 外面，否则被入场动画的 transform 劫持定位） */
+.tabbar-host {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 200;
+  /* 宽屏 H5 上跟随 .page 的 540px 单列画布，不拉成通栏 */
+  max-width: 540px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .panel-head {

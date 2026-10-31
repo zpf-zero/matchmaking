@@ -26,6 +26,9 @@ func ClientConfig(c *gin.Context) {
 		// 免费可见照片张数。前端用它渲染「还有 N 张」的解锁提示，
 		// 与后端 model.FreePhotoLimit 是同一个口径来源
 		"free_photo_limit": model.FreePhotoLimit,
+		// 私聊聊天远程开关。false 时前端隐藏消息列表与所有聊天入口，
+		// 后端同时拒绝会话/消息接口（见 middleware.RequirePrivateChat）
+		"private_chat": config.C.Features.PrivateChat,
 	})
 }
 

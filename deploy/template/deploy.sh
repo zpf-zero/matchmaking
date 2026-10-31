@@ -14,6 +14,23 @@ SITE_NAME="matchmaking.conf"
 SITE_AVAILABLE="/etc/nginx/sites-available/$SITE_NAME"
 SITE_ENABLED="/etc/nginx/sites-enabled/$SITE_NAME"
 
+# 证书由运维以文件形式放在这里（不随包分发，也别提交进 git）：
+#   /data/matchmaking/nginx/ssl/fullchain.pem
+#   /data/matchmaking/nginx/ssl/privkey.pem
+SSL_DIR="$TARGET_ROOT/nginx/ssl"
+SSL_CERT="$SSL_DIR/fullchain.pem"
+SSL_KEY="$SSL_DIR/privkey.pem"
+
+# 证书齐了就上 HTTPS 模板，缺任意一个退回纯 HTTP。
+# 这样做是为了避免「证书还没传就先 reload」——nginx -t 会直接失败，站点全挂。
+if [ -s "$SSL_CERT" ] && [ -s "$SSL_KEY" ]; then
+  SITE_TEMPLATE="$SRC_DIR/nginx/matchmaking-https.conf"
+  SCHEME="https"
+else
+  SITE_TEMPLATE="$SRC_DIR/nginx/matchmaking.conf"
+  SCHEME="http"
+fi
+
 if [ "$(id -u)" -ne 0 ]; then
   echo "需要 root 权限，请切换到 root 后执行：bash deploy.sh"
   exit 1
@@ -23,10 +40,10 @@ say() { echo; echo "==> $*"; }
 
 nginx_is_ready() {
   command -v nginx >/dev/null 2>&1 || return 1
-  [ -f "$SRC_DIR/nginx/$SITE_NAME" ] || return 1
+  [ -f "$SITE_TEMPLATE" ] || return 1
   [ -e "$SITE_ENABLED" ] || return 1
   [ ! -e /etc/nginx/sites-enabled/default ] || return 1
-  cmp -s "$SRC_DIR/nginx/$SITE_NAME" "$SITE_ENABLED" || return 1
+  cmp -s "$SITE_TEMPLATE" "$SITE_ENABLED" || return 1
   nginx -t >/dev/null 2>&1 || return 1
 }
 
@@ -60,7 +77,8 @@ mkdir -p "$TARGET_ROOT/web" \
          "$TARGET_ROOT/server/logs" \
          "$TARGET_ROOT/server/uploads" \
          "$TARGET_ROOT/server/configs" \
-         "$TARGET_ROOT/sql"
+         "$TARGET_ROOT/sql" \
+         "$SSL_DIR"
 if [ "$NGINX_READY" = "0" ]; then
   mkdir -p "$TARGET_ROOT/nginx"
 fi
@@ -117,7 +135,9 @@ else
 
   say "同步部署附属文件"
   if [ "$NGINX_READY" = "0" ]; then
-    cp -f "$SRC_DIR/nginx/$SITE_NAME" "$TARGET_ROOT/nginx/$SITE_NAME"
+    # 两份模板都带上：证书到位时下一轮部署才能切到 HTTPS
+    cp -f "$SRC_DIR/nginx/matchmaking.conf"       "$TARGET_ROOT/nginx/matchmaking.conf"
+    cp -f "$SRC_DIR/nginx/matchmaking-https.conf" "$TARGET_ROOT/nginx/matchmaking-https.conf"
   fi
   [ -d "$SRC_DIR/sql" ] && rsync -a "$SRC_DIR/sql/" "$TARGET_ROOT/sql/" || true
 fi
@@ -135,17 +155,26 @@ chmod 755 "$TARGET_ROOT/server/hunjie-server" "$TARGET_ROOT/server"/*.sh
 find "$TARGET_ROOT/server/uploads" -type d -exec chmod 755 {} +
 find "$TARGET_ROOT/server/uploads" -type f -exec chmod 644 {} +
 
+# 证书权限：证书链可公开读，私钥只给 root（nginx master 以 root 启动时读取）
+if [ -f "$SSL_CERT" ]; then chmod 644 "$SSL_CERT"; fi
+if [ -f "$SSL_KEY" ]; then chmod 600 "$SSL_KEY"; fi
+
 if [ "$NGINX_READY" = "1" ]; then
-  say "沿用现有 nginx 配置"
+  say "沿用现有 nginx 配置（$SCHEME）"
   systemctl enable --now nginx >/dev/null 2>&1 || true
 else
-  say "安装或更新 nginx 站点"
-  cp -f "$TARGET_ROOT/nginx/$SITE_NAME" "$SITE_AVAILABLE"
+  say "安装或更新 nginx 站点（$SCHEME）"
+  cp -f "$TARGET_ROOT/nginx/$(basename "$SITE_TEMPLATE")" "$SITE_AVAILABLE"
   ln -sfn "$SITE_AVAILABLE" "$SITE_ENABLED"
   rm -f /etc/nginx/sites-enabled/default
   nginx -t
   systemctl enable --now nginx >/dev/null 2>&1 || true
   systemctl reload nginx
+  if [ "$SCHEME" = "https" ]; then
+    echo "  已启用 HTTPS（证书：$SSL_CERT）"
+  else
+    echo "  证书未就位，暂用 HTTP：把 fullchain.pem / privkey.pem 放到 $SSL_DIR 后重跑本脚本即可切 HTTPS"
+  fi
 fi
 
 say "以 root 启动新后端"
@@ -153,6 +182,16 @@ bash "$TARGET_ROOT/server/start.sh"
 
 say "自检"
 FAILED=0
+# HTTPS 模式下用 127.0.0.1 访问会撞证书域名不匹配，自检加 -k 跳过校验；
+# 对外真实访问仍由微信/浏览器做完整校验，不受影响
+if [ "$SCHEME" = "https" ]; then
+  PROBE="https://127.0.0.1"
+  PROBE_OPTS="-k"
+else
+  PROBE="http://127.0.0.1"
+  PROBE_OPTS=""
+fi
+
 if curl -fsS http://127.0.0.1:8066/health >/dev/null; then
   echo "  [OK] 后端 127.0.0.1:8066/health"
 else
@@ -165,16 +204,24 @@ else
   echo "  [FAIL] nginx 转发 /health 不通"
   FAILED=1
 fi
-if curl -fsS -o /dev/null http://127.0.0.1/; then
-  echo "  [OK] 前端首页"
+if curl -fsS $PROBE_OPTS -o /dev/null "$PROBE/"; then
+  echo "  [OK] 前端首页（$SCHEME）"
 else
-  echo "  [FAIL] 前端首页打不开"
+  echo "  [FAIL] 前端首页打不开（$SCHEME）"
   FAILED=1
+fi
+if [ "$SCHEME" = "https" ]; then
+  CODE="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/ || true)"
+  if [ "$CODE" = "301" ]; then
+    echo "  [OK] HTTP 跳转 HTTPS（301）"
+  else
+    echo "  [WARN] HTTP 未按预期跳转，实际 $CODE"
+  fi
 fi
 SAMPLE="$(find "$TARGET_ROOT/server/uploads" -type f -name '*.png' -o -type f -name '*.jpg' 2>/dev/null | head -n1 || true)"
 if [ -n "$SAMPLE" ]; then
   REL="${SAMPLE#$TARGET_ROOT/server/}"
-  if curl -fsS -o /dev/null "http://127.0.0.1/$REL"; then
+  if curl -fsS $PROBE_OPTS -o /dev/null "$PROBE/$REL"; then
     echo "  [OK] 头像/图片 /$REL"
   else
     echo "  [FAIL] 图片读不到：/$REL（多半是权限问题）"
@@ -186,11 +233,11 @@ fi
 
 echo
 if [ "$FAILED" = "0" ]; then
-  echo "部署完成。"
+  echo "部署完成（$SCHEME）。"
 else
   echo "部署完成，但有检查项没通过，见上面 [FAIL]。"
 fi
-echo "  前端：      http://$(hostname -I | awk '{print $1}')/"
+echo "  前端：      $SCHEME://$(hostname -I | awk '{print $1}')/"
 echo "  后端日志：  tail -f $TARGET_ROOT/server/logs/server.log"
 echo "  运行状态：  $TARGET_ROOT/server/status.sh"
 echo

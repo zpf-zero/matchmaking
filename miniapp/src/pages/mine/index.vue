@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import UserAvatar from '@/components/UserAvatar.vue'
+import AppTabBar from '@/components/AppTabBar.vue'
 import { adminApi, interactionApi } from '@/api'
 import { Status, useUserStore } from '@/stores/user'
 
@@ -10,6 +11,8 @@ const todo = ref(0)
 const myLikes = ref(0)
 
 onShow(async () => {
+  // 底部导航改为自绘（「消息」项受私聊开关控制），原生那条全程藏着
+  uni.hideTabBar({ animation: false, fail: () => {} })
   if (!store.isLogin) return
   try {
     await store.fetchMe()
@@ -185,13 +188,32 @@ function go(url: string) {
         <text class="mi-action">进入</text>
       </view>
     </view>
+
   </view>
+
+  <!-- 放在 .page 之外：.page 有入场动画（终态保留 transform），
+       会成为 fixed 的定位祖先，把它沉到内容末尾 -->
+  <AppTabBar class="tabbar-host" active="mine" />
 </template>
 
 <style lang="scss" scoped>
 .page {
   min-height: calc(100dvh - 188rpx);
-  padding: 28rpx 24rpx 64rpx;
+  /* 底部 100rpx 自绘 tabBar + 安全区，避免最后一项被挡住 */
+  padding: 28rpx 24rpx calc(64rpx + 100rpx + env(safe-area-inset-bottom));
+}
+
+/* 宿主节点钉在视口底部（必须放在 .page 外面，否则被入场动画的 transform 劫持定位） */
+.tabbar-host {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 200;
+  /* 宽屏 H5 上跟随 .page 的 540px 单列画布，不拉成通栏 */
+  max-width: 540px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .profile-card {
